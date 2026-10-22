@@ -29,10 +29,13 @@ namespace Strata
         SerializedObject so;
         Role selRole;
         GUIStyle tileName, tileTag, sectionTitle, count, slotLabel, panel, panelTitle;
+        bool stylesPro;
         Vector2 listScroll, settingsScroll;
         float settingsH;
         string renaming;
         bool healing;
+        object hover;
+        string hoverText, after;
 
         List<StrataPack> packs = new List<StrataPack>();
         List<StrataTileSet> sets = new List<StrataTileSet>();
@@ -82,8 +85,9 @@ namespace Strata
         void BuildNow()
         {
             if (!library) return;
-            try { library.Build(); BasicProfile.Refresh(library); status = "Up to date"; }
+            try { library.Build(); BasicProfile.Refresh(library); status = after ?? "Up to date"; }
             catch (Exception ex) { status = ex.Message; Debug.LogException(ex); }
+            after = null;
             repaint();
         }
 
@@ -100,7 +104,8 @@ namespace Strata
 
         void Styles()
         {
-            if (tileName != null) return;
+            if (tileName != null && stylesPro == EditorGUIUtility.isProSkin) return;
+            stylesPro = EditorGUIUtility.isProSkin;
             tileName = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.UpperCenter, clipping = TextClipping.Clip, fontSize = 10 };
             tileTag = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.UpperCenter, fontSize = 8, clipping = TextClipping.Clip };
             tileTag.normal.textColor = new Color(0.6f, 0.6f, 0.6f);
@@ -144,7 +149,7 @@ namespace Strata
                 if (GUILayout.Button(new GUIContent("Share…", "Export as a .unitypackage, with textures and models"), EditorStyles.miniButton, GUILayout.Width(60))) Share();
                 if (GUILayout.Button(new GUIContent("Import…", "Import a .unitypackage of materials"), EditorStyles.miniButton, GUILayout.Width(60))) Later(Import);
                 GUILayout.FlexibleSpace();
-                GUILayout.Label(buildAt > 0 ? "Updating…" : status, count);
+                GUILayout.Label(new GUIContent(hoverText ?? (buildAt > 0 ? "Updating…" : status), hoverText ?? status), count);
             }
             GUILayout.Space(2);
         }
@@ -235,7 +240,7 @@ namespace Strata
                 if (all) Later(() => NewMaterial(role));
                 else AddMenu(role);
             }
-            Drop(area, o => DropOnKind(role, o), o => o is StrataMaterial || o is Texture2D);
+            Drop(area, role, role, false);
         }
 
         void Stairs(float width)
@@ -251,7 +256,7 @@ namespace Strata
                 if (all) Later(NewStair);
                 else AddMenu(null);
             }
-            Drop(area, DropOnStairs, o => o is StrataStairType || o is GameObject || o is StrataMaterial || o is Texture2D);
+            Drop(area, "stairs", null, true);
         }
 
         void AddMenu(Role? role) => AddMenuFor(role).ShowAsContext();
@@ -369,39 +374,69 @@ namespace Strata
             menu.ShowAsContext();
         }
 
-        void Drop(Rect area, Action<Object> take, Func<Object, bool> accepts)
+        void Drop(Rect area, object key, Role? role, bool stairs)
         {
             var e = Event.current;
+            if (e.type == EventType.Repaint && Equals(hover, key)) Outline(area);
             if (!area.Contains(e.mousePosition) || (e.type != EventType.DragUpdated && e.type != EventType.DragPerform)) return;
-            var refs = DragAndDrop.objectReferences.Where(accepts).ToArray();
-            if (refs.Length == 0) return;
+            var plan = StrataDrop.Peek();
+            if (plan.Empty)
+            {
+                if (plan.notes.Count == 0) return;
+                DragAndDrop.visualMode = DragAndDropVisualMode.Rejected;
+                Hover(key, plan.notes[0]);
+                e.Use();
+                return;
+            }
             DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
             if (e.type == EventType.DragPerform)
             {
                 DragAndDrop.AcceptDrag();
-                Later(() => { foreach (var o in refs) take(o); Schedule(); });
+                EndHover();
+                Take(DragAndDrop.objectReferences, DragAndDrop.paths, role, stairs);
             }
+            else Hover(key, $"Drop: {plan.Summary()}" + (stairs ? " as stairs" : role is Role r ? $" as {r.ToString().ToLower()}s" : ""));
             e.Use();
         }
 
-        void DropOnKind(Role role, Object o)
+        static void Outline(Rect r)
         {
-            var m = o as StrataMaterial ?? (o is Texture2D t ? FromTexture(t, null, role) : null);
-            if (m && (all || AddTo(role, m))) Select(m, role);
+            EditorGUI.DrawRect(new Rect(r.x - 2, r.y - 2, r.width + 4, 2), Accent);
+            EditorGUI.DrawRect(new Rect(r.x - 2, r.yMax, r.width + 4, 2), Accent);
+            EditorGUI.DrawRect(new Rect(r.x - 2, r.y, 2, r.height), Accent);
+            EditorGUI.DrawRect(new Rect(r.xMax, r.y, 2, r.height), Accent);
         }
 
-        void DropOnStairs(Object o)
+        public string HoverText => hoverText;
+        public bool OverSection => hover != null && !Equals(hover, "window");
+
+        public void Hover(object key, string text)
         {
-            StrataStairType st = o as StrataStairType;
-            if (!st && o is GameObject go) st = ModelStair(go, null);
-            if (!st && (o is StrataMaterial || o is Texture2D))
+            if (Equals(hover, key) && hoverText == text) return;
+            hover = key;
+            hoverText = text;
+            repaint();
+        }
+
+        public void EndHover()
+        {
+            if (hover == null && hoverText == null) return;
+            hover = null;
+            hoverText = null;
+            repaint();
+        }
+
+        public void Take(Object[] objects, string[] paths, Role? role, bool stairs)
+        {
+            var o = (objects ?? new Object[0]).ToArray();
+            var p = (paths ?? new string[0]).ToArray();
+            Later(() =>
             {
-                var m = o as StrataMaterial ?? FromTexture((Texture2D)o, null, Role.Side);
-                st = MakeStair();
-                st.body = st.tread = st.cheek = m;
-                EditorUtility.SetDirty(st);
-            }
-            if (st) { if (!all) AddStair(st); Select(st); }
+                var r = StrataDrop.Apply(o, p, all ? null : library, role, stairs, selected as StrataMaterial);
+                if (r.first) Select(r.first, r.role);
+                if (!all && library) { Schedule(); after = r.status; }
+                status = all || !library ? r.status : "Updating…";
+            });
         }
 
         static string FolderFor(StrataPack pack, bool stairs)
@@ -433,15 +468,6 @@ namespace Strata
         }
 
         void NewStair() { var st = MakeStair(); if (!all) AddStair(st); Select(st); }
-
-        static StrataStairType ModelStair(GameObject go, StrataPack pack)
-        {
-            var st = ScriptableObject.CreateInstance<StrataStairType>();
-            st.build = StrataStairType.Build.Models;
-            st.step = go;
-            AssetDatabase.CreateAsset(st, AssetDatabase.GenerateUniqueAssetPath($"{FolderFor(pack, true)}/{StrataTileSet.Safe(go.name)} Stairs.asset"));
-            return st;
-        }
 
         bool AddTo(Role role, StrataMaterial m)
         {
@@ -648,33 +674,6 @@ namespace Strata
             if (string.IsNullOrEmpty(path) || name == asset.name) return;
             string err = AssetDatabase.RenameAsset(path, name);
             if (!string.IsNullOrEmpty(err)) Debug.LogWarning("Strata: " + err);
-        }
-
-        static readonly string[] AlbedoWords = { "_albedo", "_basecolor", "_base_color", "_basemap", "_diffuse", "_color", "_col", "_diff", "_d" };
-        static readonly string[] NormalWords = { "_normal", "_normalgl", "_normaldx", "_nrm", "_nor", "_n" };
-        static readonly string[] MetalWords = { "_metallicsmoothness", "_metallic", "_metal", "_met" };
-        static readonly string[] OcclusionWords = { "_ambientocclusion", "_occlusion", "_ao" };
-        static readonly string[] PackedWords = { "_orm" };
-
-        public static StrataMaterial FromTexture(Texture2D albedo, StrataPack pack, Role role)
-        {
-            string path = AssetDatabase.GetAssetPath(albedo), dir = Path.GetDirectoryName(path).Replace('\\', '/');
-            string stem = Path.GetFileNameWithoutExtension(path), lower = stem.ToLowerInvariant();
-            foreach (var w in AlbedoWords) if (lower.EndsWith(w)) { stem = stem.Substring(0, stem.Length - w.Length); break; }
-            var siblings = AssetDatabase.FindAssets("t:Texture2D", new[] { dir }).Select(AssetDatabase.GUIDToAssetPath).Where(p => Path.GetDirectoryName(p).Replace('\\', '/') == dir).ToArray();
-            Texture2D Find(string[] words)
-            {
-                foreach (var w in words)
-                    foreach (var p in siblings)
-                        if (Path.GetFileNameWithoutExtension(p).Equals(stem + w, StringComparison.OrdinalIgnoreCase)) return AssetDatabase.LoadAssetAtPath<Texture2D>(p);
-                return null;
-            }
-            var m = ScriptableObject.CreateInstance<StrataMaterial>();
-            m.albedo = albedo; m.normal = Find(NormalWords); m.metallic = Find(MetalWords); m.occlusion = Find(OcclusionWords); m.packed = Find(PackedWords);
-            m.meantAs = UseOf(role);
-            AssetDatabase.CreateAsset(m, AssetDatabase.GenerateUniqueAssetPath($"{FolderFor(pack, false)}/{StrataTileSet.Safe(stem)}.asset"));
-            if (pack) MoveTo(m, pack);
-            return m;
         }
 
         void NewLibrary()

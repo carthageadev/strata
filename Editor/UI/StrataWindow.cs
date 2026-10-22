@@ -12,7 +12,10 @@ namespace Strata
     {
         Vector2 scroll;
         string message = "";
-        GUIStyle titleStyle, small, box;
+        //! keep these NonSerialized!! unity keeps the window fields after recompile so the old styles came back
+        //! and the title was black on the dark skin
+        [NonSerialized] GUIStyle small, box, dropTitle, dropText;
+        [NonSerialized] bool stylesPro;
         [SerializeField] int tab;
         [SerializeField] StrataTileSet materialsLibrary;
         StrataMaterialsView materials;
@@ -55,10 +58,12 @@ namespace Strata
 
         void Styles()
         {
-            if (titleStyle != null) return;
-            titleStyle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 16 };
+            if (small != null && stylesPro == EditorGUIUtility.isProSkin) return;
+            stylesPro = EditorGUIUtility.isProSkin;
             small = new GUIStyle(EditorStyles.wordWrappedMiniLabel) { fontSize = 10 };
             box = new GUIStyle(EditorStyles.helpBox) { padding = new RectOffset(10, 10, 8, 10) };
+            dropTitle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 14, alignment = TextAnchor.MiddleCenter };
+            dropText = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleCenter, clipping = TextClipping.Clip };
         }
 
         void OnGUI()
@@ -67,13 +72,9 @@ namespace Strata
             GUILayout.Space(6);
             using (new EditorGUILayout.HorizontalScope())
             {
-                GUILayout.Label(StrataIcons.Tool, GUILayout.Width(20), GUILayout.Height(20));
-                GUILayout.Label("Strata", titleStyle);
-                GUILayout.FlexibleSpace();
+                tab = GUILayout.Toolbar(tab, new[] { "Terrain", "Materials" });
                 if (GUILayout.Button(new GUIContent(StrataIcons.Gear, "Preferences"), EditorStyles.iconButton, GUILayout.Width(20), GUILayout.Height(20))) SettingsService.OpenUserPreferences(StrataPreferences.Path);
             }
-            GUILayout.Space(4);
-            tab = GUILayout.Toolbar(tab, new[] { "Terrain", "Materials" });
             GUILayout.Space(6);
 
             if (tab == 1)
@@ -81,9 +82,60 @@ namespace Strata
                 if (!materials.library) materials.library = StrataProfiles.Library(StrataSessions.Active) ?? BasicProfile.DefaultTiles();
                 materials.Draw(position.width, position.height);
                 materialsLibrary = materials.library;
+            }
+            else TerrainTab();
+            Dropping();
+        }
+
+        void Dropping()
+        {
+            var e = Event.current;
+            if (e.type == EventType.DragExited) { materials.EndHover(); return; }
+            if (e.type == EventType.Repaint)
+            {
+                if (materials.HoverText != null && !materials.OverSection) Overlay(materials.HoverText);
                 return;
             }
+            if (e.type != EventType.DragUpdated && e.type != EventType.DragPerform) return;
+            var plan = StrataDrop.Peek();
+            if (plan.Empty)
+            {
+                if (plan.notes.Count == 0) { materials.EndHover(); return; }
+                DragAndDrop.visualMode = DragAndDropVisualMode.Rejected;
+                materials.Hover("window", plan.notes[0]);
+                e.Use();
+                return;
+            }
+            DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+            if (e.type == EventType.DragPerform)
+            {
+                DragAndDrop.AcceptDrag();
+                materials.EndHover();
+                tab = 1;
+                if (!materials.library) materials.library = StrataProfiles.Library(StrataSessions.Active) ?? BasicProfile.DefaultTiles();
+                materials.Take(DragAndDrop.objectReferences, DragAndDrop.paths, null, false);
+            }
+            else materials.Hover("window", plan.Summary());
+            e.Use();
+        }
 
+        void Overlay(string text)
+        {
+            var all = new Rect(0, 0, position.width, position.height);
+            EditorGUI.DrawRect(all, new Color(0f, 0f, 0f, 0.35f));
+            var r = new Rect(16, position.height / 2 - 36, position.width - 32, 72);
+            var accent = new Color(0.95f, 0.72f, 0.3f);
+            EditorGUI.DrawRect(r, EditorGUIUtility.isProSkin ? new Color(0.16f, 0.16f, 0.16f, 1f) : new Color(0.86f, 0.86f, 0.86f, 1f));
+            EditorGUI.DrawRect(new Rect(r.x, r.y, r.width, 2), accent);
+            EditorGUI.DrawRect(new Rect(r.x, r.yMax - 2, r.width, 2), accent);
+            EditorGUI.DrawRect(new Rect(r.x, r.y, 2, r.height), accent);
+            EditorGUI.DrawRect(new Rect(r.xMax - 2, r.y, 2, r.height), accent);
+            GUI.Label(new Rect(r.x, r.y + 12, r.width, 22), "Drop to add to Strata", dropTitle);
+            GUI.Label(new Rect(r.x + 8, r.y + 40, r.width - 16, 18), text, dropText);
+        }
+
+        void TerrainTab()
+        {
             scroll = EditorGUILayout.BeginScrollView(scroll);
 
             if (!string.IsNullOrEmpty(StrataSessions.Notice) && !StrataSessions.RecoveryOffered) EditorGUILayout.HelpBox(StrataSessions.Notice, MessageType.Info);
