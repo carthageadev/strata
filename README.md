@@ -82,9 +82,6 @@ Bake saves it all as a plain prefab, ur map dont need strata to run. undo works 
 
 ![Terrain](.github/readme/terrain.webp)
 
-
-
-
 ## Menus
 
 - `Tools > Strata > New Terrain` to start
