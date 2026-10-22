@@ -56,14 +56,16 @@ namespace Strata
         public sealed class Result
         {
             public readonly List<(Object item, Role role)> items = new List<(Object, Role)>();
+            public readonly List<(Object item, Role role)> left = new List<(Object, Role)>();
             public readonly List<string> created = new List<string>();
             public readonly List<string> notes = new List<string>();
             public readonly List<string> configured = new List<string>();
             public readonly List<string> updated = new List<string>();
             public readonly List<string> already = new List<string>();
-            public Object first => items.Count > 0 ? items[0].item : null;
-            public Role role => items.Count > 0 ? items[0].role : Role.Top;
+            public Object first => items.Count > 0 ? items[0].item : left.Count > 0 ? left[0].item : null;
+            public Role role => items.Count > 0 ? items[0].role : left.Count > 0 ? left[0].role : Role.Top;
             public string status;
+            public string full;
         }
 
         static readonly string[] ImageExt = { ".png", ".jpg", ".jpeg", ".tga", ".psd", ".tif", ".tiff", ".exr", ".bmp", ".gif", ".hdr" };
@@ -442,10 +444,10 @@ namespace Strata
             if (job.stair)
             {
                 var st = StoneStair(m, g, r);
-                if (st && Add(library, st, r)) r.items.Add((st, job.role));
+                if (st) (Add(library, st, r) ? r.items : r.left).Add((st, job.role));
                 return;
             }
-            if (Add(library, job.role, m, r)) r.items.Add((m, job.role));
+            (Add(library, job.role, m, r) ? r.items : r.left).Add((m, job.role));
         }
 
         static void Save(Object o)
@@ -702,7 +704,7 @@ namespace Strata
             var list = lib.List(role);
             if (list.Contains(m)) return Was(m, m.Title, r);
             int max = StrataTileSet.Max(role);
-            if (list.Count >= max) { r.notes.Add($"{m.Title}: the {role.ToString().ToLower()}s are full ({max})"); return false; }
+            if (list.Count >= max) { r.full = role.ToString().ToLower() + "s"; r.notes.Add($"{m.Title}: the {r.full} are full ({max})"); return false; }
             Undo.RecordObject(lib, "Strata: drop");
             list.Add(m);
             EditorUtility.SetDirty(lib);
@@ -713,7 +715,7 @@ namespace Strata
         {
             if (!lib) return r.created.Contains(AssetDatabase.GetAssetPath(st)) || Was(st, st.Title, r);
             if (lib.stairs.Contains(st)) return Was(st, st.Title, r);
-            if (lib.stairs.Count >= StrataTileSet.MaxStairs) { r.notes.Add($"{st.Title}: the stair types are full ({StrataTileSet.MaxStairs})"); return false; }
+            if (lib.stairs.Count >= StrataTileSet.MaxStairs) { r.full = "stairs"; r.notes.Add($"{st.Title}: the stair types are full ({StrataTileSet.MaxStairs})"); return false; }
             Undo.RecordObject(lib, "Strata: drop");
             lib.stairs.Add(st);
             EditorUtility.SetDirty(lib);
@@ -757,7 +759,7 @@ namespace Strata
                     x.lastStep = s.last != step ? s.last : null;
                 });
             }
-            if (Add(library, st, r)) r.items.Add((st, Role.Top));
+            (Add(library, st, r) ? r.items : r.left).Add((st, Role.Top));
         }
     }
 }
