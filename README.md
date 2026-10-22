@@ -8,6 +8,9 @@ A terrain painter for HD-2D maps in Unity.
 
 Paint levels, ground, walls, edges and stairs in the Scene view, then bake to a plain prefab. The tool does not need terrain dependencies to run.
 
+The painting tools run entirely in the Unity Editor.
+Baked terrains use regular Unity meshes and materials.
+
 ## Setup
 
 Unity 6 with URP. Copy this folder into `Assets/Strata` or clone this repo straight in your `Assets` folder
