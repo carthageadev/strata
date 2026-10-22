@@ -17,7 +17,7 @@ namespace Strata
         [NonSerialized] GUIStyle small, box, dropTitle, dropText;
         [NonSerialized] bool stylesPro;
         [NonSerialized] string[] found, here, backups;
-        [NonSerialized] bool mapPresent, converted, packMade, gridReady, filesKnown, sceneKnown, backupsKnown;
+        [NonSerialized] bool filesKnown, sceneKnown, backupsKnown;
         [SerializeField] int tab;
         [SerializeField] StrataTileSet materialsLibrary;
         StrataMaterialsView materials;
@@ -75,10 +75,6 @@ namespace Strata
                 filesKnown = true;
                 sceneKnown = false;
                 found = StrataSessions.FindTerrains();
-                mapPresent = VillageV2Profile.MapPresent;
-                converted = VillageV2Profile.Converted;
-                packMade = VillageV2Profile.PackMade;
-                gridReady = VillageV2Import.Available;
             }
             if (!sceneKnown) { sceneKnown = true; here = t == null ? StrataSessions.TerrainsInScene(found) : new string[0]; }
             if (!backupsKnown) { backupsKnown = true; backups = t != null ? StrataTerrain.Backups(t.Name) : new string[0]; }
@@ -173,9 +169,7 @@ namespace Strata
             var t = StrataSessions.Active;
             if (t != null) OpenTerrain(t); else Terrains();
 
-            if (mapPresent && !converted) Village V2();
-            if (mapPresent && !packMade && GUILayout.Button(new GUIContent("Make Village V2's Strata pack", "Village V2's ground, walls, edges and stairs as Strata materials, kept with the map, so Strata terrains can paint with them"), GUILayout.Height(24)))
-                Run(() => message = VillageV2Profile.MakePack());
+            foreach (var f in StrataProfiles.Formats) f.TerrainTab(job => Run(() => message = job()));
             if (GUILayout.Button(new GUIContent("New terrain…", "Also GameObject > Strata > Terrain, or right-click in the Hierarchy"), GUILayout.Height(24))) StrataNewTerrain.Open();
             Keys();
             EditorGUILayout.EndScrollView();
@@ -281,24 +275,6 @@ namespace Strata
                         if (GUILayout.Button("Open", GUILayout.Width(60))) Run(() => { if (StrataSessions.Open(path) != null && inScene) ToolManager.SetActiveTool<StrataTool>(); });
                     }
                 }
-            }
-        }
-
-        void Village V2()
-        {
-            using (new EditorGUILayout.VerticalScope(box))
-            {
-                GUILayout.Label("Village V2", EditorStyles.boldLabel);
-                GUILayout.Label("Rebuilds the exported terrain as an editable one, checks it matches, and swaps it in. The scene is backed up first.", small);
-                if (!gridReady) EditorGUILayout.HelpBox("Generated/Data/terrainGrid.bin is missing: re-export the map from the web version.", MessageType.Warning);
-                GUI.enabled = gridReady;
-                if (GUILayout.Button("Make Village V2's terrain editable", GUILayout.Height(26)))
-                    Run(() =>
-                    {
-                        message = VillageV2Profile.Convert((s, f) => EditorUtility.DisplayProgressBar("Strata", s, f));
-                        StrataSessions.Open(VillageV2Profile.DataPath);
-                    });
-                GUI.enabled = true;
             }
         }
 
