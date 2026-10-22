@@ -32,6 +32,7 @@ namespace Strata
         bool stylesPro;
         Vector2 listScroll, settingsScroll;
         float viewH;
+        bool locked, selLocked;
         float settingsH;
         string renaming;
         bool healing;
@@ -74,6 +75,7 @@ namespace Strata
         public void Select(Object item, Role role = Role.Top)
         {
             selected = item; selRole = role; so = null; renaming = null; settingsScroll = Vector2.zero;
+            selLocked = Locked(item);
             if (panelH.TryGetValue(PanelOf(item), out float h)) settingsH = h;
             else if (item) settingsH = float.MaxValue;
         }
@@ -150,8 +152,15 @@ namespace Strata
             if (active != null && active.map.profile == VillageV2Profile.Id)
                 EditorGUILayout.HelpBox("Village V2's terrain draws with its own materials; tile sets are for Strata terrains.", MessageType.None);
             if (!library && !all) { GUILayout.Label("Pick a tile set.", EditorStyles.miniLabel); return; }
-            if (!all && !library.Current) { library.Upgrade(); Schedule(); }
-            if (!all && !healing && (Holes(library.tops) || Holes(library.sides) || Holes(library.edges) || Holes(library.stairs)))
+            locked = !all && Locked(library);
+            if (locked)
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    GUILayout.Label("Read only, it came with the package", EditorStyles.miniLabel);
+                    if (GUILayout.Button(new GUIContent("Make a copy", "An editable tile set in Assets with the same items"), EditorStyles.miniButton, GUILayout.Width(90))) Later(NewLibrary);
+                }
+            if (!all && !locked && !library.Current) { library.Upgrade(); Schedule(); }
+            if (!all && !locked && !healing && (Holes(library.tops) || Holes(library.sides) || Holes(library.edges) || Holes(library.stairs)))
             {
                 healing = true;
                 Later(() => { BasicProfile.Heal(library); healing = false; Select(null); });
@@ -200,6 +209,7 @@ namespace Strata
                 GUILayout.Space(6);
                 bool scrolls = settingsH > maxH;
                 settingsScroll = EditorGUILayout.BeginScrollView(settingsScroll, GUIStyle.none, scrolls ? GUI.skin.verticalScrollbar : GUIStyle.none, GUILayout.Height(Mathf.Min(settingsH, maxH)));
+                using (new EditorGUI.DisabledScope(selected ? selLocked : locked))
                 using (new EditorGUILayout.VerticalScope())
                 {
                     float inner = width - (scrolls ? 44 : 28);
@@ -256,7 +266,7 @@ namespace Strata
         void Kind(Role role, string title, float width)
         {
             var shown = all ? kinds[role] : library.List(role);
-            bool room = all || shown.Count < StrataTileSet.Max(role);
+            bool room = all || !locked && shown.Count < StrataTileSet.Max(role);
             Header(title, all ? $"{shown.Count}" : $"{shown.Count} / {StrataTileSet.Max(role)}");
             var area = Grid(shown.Count + (room ? 1 : 0), width, out int perRow);
             for (int i = 0; i < shown.Count; i++)
@@ -280,7 +290,7 @@ namespace Strata
         void Stairs(float width)
         {
             var shown = all ? stairList : library.stairs;
-            bool room = all || shown.Count < StrataTileSet.MaxStairs;
+            bool room = all || !locked && shown.Count < StrataTileSet.MaxStairs;
             Header("Stairs", all ? $"{shown.Count}" : $"{shown.Count} / {StrataTileSet.MaxStairs}");
             var area = Grid(shown.Count + (room ? 1 : 0), width, out int perRow);
             for (int i = 0; i < shown.Count; i++)
@@ -330,6 +340,15 @@ namespace Strata
 
         //! only draw tiles in view, drawing all of them every event made scrolling lag
         bool Seen(Rect r) => r.yMax >= listScroll.y && r.y <= listScroll.y + viewH;
+
+        // installed from git or the registry: unity keeps the package read only
+        static bool Locked(Object o)
+        {
+            string path = o ? AssetDatabase.GetAssetPath(o) : null;
+            if (path == null || !path.StartsWith("Packages/")) return false;
+            var info = UnityEditor.PackageManager.PackageInfo.FindForAssetPath(path);
+            return info != null && info.source != UnityEditor.PackageManager.PackageSource.Embedded && info.source != UnityEditor.PackageManager.PackageSource.Local;
+        }
 
         static bool Holes<T>(List<T> list) where T : Object
         {
@@ -470,10 +489,11 @@ namespace Strata
             var p = (paths ?? new string[0]).ToArray();
             Later(() =>
             {
-                var r = StrataDrop.Apply(o, p, all ? null : library, role, stairs, selected as StrataMaterial);
+                bool into = !all && library && !locked;
+                var r = StrataDrop.Apply(o, p, into ? library : null, role, stairs, selLocked ? null : selected as StrataMaterial);
                 if (r.first) Select(r.first, r.role);
-                if (!all && library) { Schedule(); after = r.status; }
-                status = all || !library ? r.status : "Updating…";
+                if (into) { Schedule(); after = r.status; }
+                status = into ? "Updating…" : r.status;
             });
         }
 
