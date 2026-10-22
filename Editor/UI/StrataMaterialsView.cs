@@ -17,6 +17,8 @@ namespace Strata
         StrataTileSet set;
         bool all;
 
+        public Action<string> full;
+
         public StrataTileSet library
         {
             get => set;
@@ -33,6 +35,9 @@ namespace Strata
         Vector2 listScroll, settingsScroll;
         float viewH;
         bool locked, selLocked;
+        readonly HashSet<Object> flash = new HashSet<Object>();
+        double flashUntil;
+        Object scrollTo;
         float settingsH;
         string renaming;
         bool healing;
@@ -100,7 +105,29 @@ namespace Strata
             pickNames = null;
         }
 
-        void Tick() { if (buildAt > 0 && EditorApplication.timeSinceStartup >= buildAt) { buildAt = -1; BuildNow(); } }
+        void Tick()
+        {
+            if (buildAt > 0 && EditorApplication.timeSinceStartup >= buildAt) { buildAt = -1; BuildNow(); }
+            if (flashUntil <= 0) return;
+            if (EditorApplication.timeSinceStartup > flashUntil) { flashUntil = 0; flash.Clear(); }
+            repaint();
+        }
+
+        void Flash(IEnumerable<Object> items, Object first)
+        {
+            flash.Clear();
+            foreach (var x in items) if (x) flash.Add(x);
+            flashUntil = flash.Count > 0 ? EditorApplication.timeSinceStartup + 1.6 : 0;
+            scrollTo = first;
+        }
+
+        void ScrollTo(Object item, Rect cell)
+        {
+            if (!ReferenceEquals(item, scrollTo) || Event.current.type != EventType.Repaint) return;
+            scrollTo = null;
+            listScroll.y = Mathf.Max(0, cell.y - 40);
+            repaint();
+        }
         void OnUndo() { if (library) Schedule(); }
         void Schedule() { buildAt = EditorApplication.timeSinceStartup + 0.6; status = "Updating…"; }
 
@@ -266,11 +293,13 @@ namespace Strata
         {
             var shown = all ? kinds[role] : library.List(role);
             bool room = all || !locked && shown.Count < StrataTileSet.Max(role);
+            bool isFull = !all && !locked && !room;
             Header(title, all ? $"{shown.Count}" : $"{shown.Count} / {StrataTileSet.Max(role)}");
-            var area = Grid(shown.Count + (room ? 1 : 0), width, out int perRow);
+            var area = Grid(shown.Count + (room || isFull ? 1 : 0), width, out int perRow);
             for (int i = 0; i < shown.Count; i++)
             {
                 var cell = Cell(area, i, perRow);
+                ScrollTo(shown[i], cell);
                 if (!Seen(cell)) continue;
                 var item = shown[i];
                 if (!item) continue;
@@ -283,6 +312,7 @@ namespace Strata
                 if (all) Later(() => NewMaterial(role));
                 else AddMenu(role);
             }
+            else if (isFull && FullTile(Cell(area, shown.Count, perRow), $"{library.name} has no room for more {title.ToLower()}")) Full(title.ToLower());
             Drop(area, role, role, false);
         }
 
@@ -290,10 +320,13 @@ namespace Strata
         {
             var shown = all ? stairList : library.stairs;
             bool room = all || !locked && shown.Count < StrataTileSet.MaxStairs;
-            Header("Stairs", all ? $"{shown.Count}" : $"{shown.Count} / {StrataTileSet.MaxStairs}");
+            Header("Stairs", $"{shown.Count}");
             var area = Grid(shown.Count + (room ? 1 : 0), width, out int perRow);
             for (int i = 0; i < shown.Count; i++)
+            {
+                ScrollTo(shown[i], Cell(area, i, perRow));
                 if (Seen(Cell(area, i, perRow)) && shown[i]) Tile(Cell(area, i, perRow), shown[i], Role.Top, shown[i].Preview, null, null, shown[i].Title, PackName(shown[i]));
+            }
             if (room && AddTile(Cell(area, shown.Count, perRow), "Add a stair type (or drop a step model here)"))
             {
                 if (all) Later(NewStair);
@@ -379,6 +412,7 @@ namespace Strata
                 }
                 else EditorGUI.DrawRect(img, new Color(0.3f, 0.3f, 0.3f));
                 if (on) EditorGUI.DrawRect(new Rect(r.x, r.yMax - 2, r.width, 2), Accent);
+                if (flash.Contains(item)) Outline(r, Mathf.PingPong((float)EditorApplication.timeSinceStartup * 4f, 1f));
             }
             tileLabel.text = tileLabel.tooltip = name;
             tileName.alignment = tileName.CalcSize(tileLabel).x > r.width - 2 ? TextAnchor.UpperLeft : TextAnchor.UpperCenter;
@@ -392,6 +426,19 @@ namespace Strata
                 if (e.button == 1) Context(item, role);
                 e.Use();
             }
+        }
+
+        bool FullTile(Rect r, string tip)
+        {
+            if (Event.current.type == EventType.Repaint) EditorGUI.DrawRect(r, new Color(1f, 0.38f, 0.32f, 0.1f));
+            GUI.Label(new Rect(r.x, r.y + TileW / 2 - 6, r.width, 14), "full", tileName);
+            return GUI.Button(r, new GUIContent("", tip), GUIStyle.none);
+        }
+
+        void Full(string kind)
+        {
+            if (library == StrataProfiles.Library(StrataSessions.Active)) full?.Invoke(kind);
+            else status = $"{library.name}: the {kind} are full";
         }
 
         bool AddTile(Rect r, string tip)
@@ -431,7 +478,7 @@ namespace Strata
         void Drop(Rect area, object key, Role? role, bool stairs)
         {
             var e = Event.current;
-            if (e.type == EventType.Repaint && Equals(hover, key)) Outline(area);
+            if (e.type == EventType.Repaint && Equals(hover, key)) Outline(area, 1f);
             if (!area.Contains(e.mousePosition) || (e.type != EventType.DragUpdated && e.type != EventType.DragPerform)) return;
             var plan = StrataDrop.Peek();
             if (plan.Empty)
@@ -453,12 +500,13 @@ namespace Strata
             e.Use();
         }
 
-        static void Outline(Rect r)
+        static void Outline(Rect r, float alpha)
         {
-            EditorGUI.DrawRect(new Rect(r.x - 2, r.y - 2, r.width + 4, 2), Accent);
-            EditorGUI.DrawRect(new Rect(r.x - 2, r.yMax, r.width + 4, 2), Accent);
-            EditorGUI.DrawRect(new Rect(r.x - 2, r.y, 2, r.height), Accent);
-            EditorGUI.DrawRect(new Rect(r.xMax, r.y, 2, r.height), Accent);
+            var c = new Color(Accent.r, Accent.g, Accent.b, alpha);
+            EditorGUI.DrawRect(new Rect(r.x - 2, r.y - 2, r.width + 4, 2), c);
+            EditorGUI.DrawRect(new Rect(r.x - 2, r.yMax, r.width + 4, 2), c);
+            EditorGUI.DrawRect(new Rect(r.x - 2, r.y, 2, r.height), c);
+            EditorGUI.DrawRect(new Rect(r.xMax, r.y, 2, r.height), c);
         }
 
         public string HoverText => hoverText;
@@ -487,10 +535,18 @@ namespace Strata
             Later(() =>
             {
                 bool into = !all && library && !locked;
-                var r = StrataDrop.Apply(o, p, into ? library : null, role, stairs, selLocked ? null : selected as StrataMaterial);
+                var target = into ? library : BasicProfile.DefaultSet();
+                if (locked) library = target;
+                var r = StrataDrop.Apply(o, p, target, role, stairs, selLocked ? null : selected as StrataMaterial);
                 if (r.first) Select(r.first, r.role);
-                if (into) { Schedule(); after = r.status; }
-                status = into ? "Updating…" : r.status;
+                Flash(r.items.Concat(r.left).Select(x => x.item), r.first);
+                if (r.full != null && target && target == StrataProfiles.Library(StrataSessions.Active)) full?.Invoke(r.full);
+                if (target == library) { Schedule(); after = r.status; status = "Updating…"; }
+                else
+                {
+                    if (target && r.items.Count > 0) { target.Build(); BasicProfile.Refresh(target); }
+                    status = target ? $"{r.status} In {target.name}." : r.status;
+                }
             });
         }
 
@@ -742,9 +798,7 @@ namespace Strata
             if (library)
             {
                 library.Upgrade();
-                ts.tops = new List<StrataMaterial>(library.tops); ts.sides = new List<StrataMaterial>(library.sides);
-                ts.edges = new List<StrataMaterial>(library.edges); ts.stairs = new List<StrataStairType>(library.stairs);
-                ts.slopeLayer = library.slopeLayer; ts.macro = library.macro; ts.noise = library.noise; ts.pixelGrid = library.pixelGrid;
+                ts.CopyItems(library);
             }
             AssetDatabase.CreateAsset(ts, path);
             ts.Upgrade();

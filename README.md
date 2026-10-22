@@ -29,7 +29,8 @@ Strata checks for a new version once a session and asks before updating. Turn it
 - ground layers like grass, paving, sand, and pick the wall style per side
 - stairs between two heights, a flight or a landing, stone or timber or your own step models
 - curved stuff like hills, valleys and ramps
-- **drag and drop**: grab textures or meshes and drop them on the strata window, it makes the materials for you. it reads albedo, normal, roughness etc from the file names, sets the import settings (normals, linear maps, point filter for pixel art) and packs an ORM map. walls and bricks go to sides, trims to edges, step models become stairs. works with files straight from explorer too
+- **drag and drop**: grab textures or meshes and drop them on the strata window, it makes the materials for you. it reads albedo, normal, roughness etc from the file names, sets the import settings (normals, linear maps, point filter for pixel art) and packs an ORM map. walls and bricks go to sides, trims to edges, step models become stairs. works with files straight from explorer too. if u didnt pick a set they go in the Default Set
+- one terrain can use 12 tops, 15 sides and 15 edges max (stairs got no limit), its how the paint gets saved for now. the strata window shows what ur terrain uses and warns u before ur full
 - tile sets and packs, share them as a .unitypackage
 - bake gives a plain prefab, ur map dont need strata to run
 - undo on every stroke, backups when u bake, crash recovery

@@ -21,6 +21,7 @@ namespace Strata
         [SerializeField] int tab;
         [SerializeField] StrataTileSet materialsLibrary;
         StrataMaterialsView materials;
+        StrataUsage usage;
 
         [MenuItem("Tools/Strata/Terrain Editor", priority = 0)]
         public static void ShowWindow()
@@ -50,7 +51,8 @@ namespace Strata
             StrataSessions.Changed += SessionChanged;
             EditorApplication.projectChanged += Forget;
             EditorApplication.hierarchyChanged += SceneChanged;
-            materials = new StrataMaterialsView(Repaint) { library = materialsLibrary };
+            usage = new StrataUsage(Repaint);
+            materials = new StrataMaterialsView(Repaint) { library = materialsLibrary, full = k => usage.Focus(k) };
         }
 
         void OnDisable()
@@ -63,6 +65,7 @@ namespace Strata
         }
 
         void OnFocus() => Forget();
+        void Update() { if (usage != null && (usage.Flashing || usage.Pending)) Repaint(); }
         void Forget() { filesKnown = sceneKnown = backupsKnown = false; Repaint(); }
         void SessionChanged() { sceneKnown = backupsKnown = false; Repaint(); }
         void SceneChanged() { sceneKnown = false; if (tab == 0) Repaint(); }
@@ -108,6 +111,7 @@ namespace Strata
                 materialsLibrary = materials.library;
             }
             else TerrainTab();
+            usage.Draw();
             Dropping();
         }
 

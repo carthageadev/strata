@@ -11,11 +11,43 @@ namespace Strata.Formats
     {
         public const string Id = "basic";
 
+        public const string DefaultSetPath = "Assets/Strata Materials/Default Set.asset";
+        const string BasicGuid = "c382d96aaf884864aa103e400cf99eba";
+
+        public static StrataTileSet Shipped() => AssetDatabase.LoadAssetAtPath<StrataTileSet>(AssetDatabase.GUIDToAssetPath(BasicGuid));
+
         public static StrataTileSet DefaultTiles()
         {
-            var guids = AssetDatabase.FindAssets("t:StrataTileSet");
-            var paths = guids.Select(AssetDatabase.GUIDToAssetPath).OrderBy(p => p.Contains("/Strata/Tiles/Basic/") ? 0 : 1).ToArray();
-            return paths.Length > 0 ? AssetDatabase.LoadAssetAtPath<StrataTileSet>(paths[0]) : null;
+            var d = AssetDatabase.LoadAssetAtPath<StrataTileSet>(DefaultSetPath);
+            if (d) return d;
+            var b = Shipped();
+            if (b) return b;
+            var any = AssetDatabase.FindAssets("t:StrataTileSet").Select(AssetDatabase.GUIDToAssetPath).FirstOrDefault();
+            return any != null ? AssetDatabase.LoadAssetAtPath<StrataTileSet>(any) : null;
+        }
+
+        public static StrataTileSet DefaultSet()
+        {
+            var d = AssetDatabase.LoadAssetAtPath<StrataTileSet>(DefaultSetPath);
+            if (d) return d;
+            var from = Shipped();
+            d = ScriptableObject.CreateInstance<StrataTileSet>();
+            if (from)
+            {
+                from.Upgrade();
+                d.CopyItems(from);
+                string home = System.IO.Path.GetDirectoryName(AssetDatabase.GetAssetPath(from)).Replace('\\', '/') + "/";
+                bool Own(UnityEngine.Object o) => o && AssetDatabase.GetAssetPath(o).StartsWith(home);
+                var slope = from.slopeLayer >= 0 && from.slopeLayer < from.tops.Count ? from.tops[from.slopeLayer] : null;
+                d.tops.RemoveAll(x => !Own(x)); d.sides.RemoveAll(x => !Own(x)); d.edges.RemoveAll(x => !Own(x)); d.stairs.RemoveAll(x => !Own(x));
+                d.slopeLayer = Own(slope) ? d.tops.IndexOf(slope) : -1;
+            }
+            StrataTerrain.EnsureFolder(System.IO.Path.GetDirectoryName(DefaultSetPath).Replace('\\', '/'));
+            AssetDatabase.CreateAsset(d, DefaultSetPath);
+            d.Upgrade();
+            d.Build();
+            AssetDatabase.SaveAssets();
+            return d;
         }
 
         public static StrataTileSet TilesOf(StrataMap m)
