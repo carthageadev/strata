@@ -12,7 +12,7 @@ namespace Strata
         static SettingsProvider Create() => new SettingsProvider(Path, SettingsScope.User)
         {
             label = "Strata",
-            keywords = new[] { "Strata", "update", "version", "terrain", "bake", "backup", "brush", "label", "follow", "ground", "experimental" },
+            keywords = new[] { "Strata", "terrain", "bake", "backup", "brush", "label", "follow", "ground", "experimental" },
             guiHandler = _ => Draw(),
         };
 
@@ -45,15 +45,6 @@ namespace Strata
                 Float("Standing within (m)", "How close an object's base must be to the ground to count as standing on it", 0.05f, 2f, () => StrataSettings.FollowTolerance, v => StrataSettings.FollowTolerance = v);
                 Float("Largest object (m)", "Wider objects stay put (water, whole groups) and their parts are checked one by one. Width is taken from colliders where there are any.", 2f, 200f, () => StrataSettings.FollowMaxSize, v => StrataSettings.FollowMaxSize = v);
                 EditorGUI.indentLevel--;
-            }
-
-            Header("Updates");
-            Toggle("Check for updates on start", "Once per session, asks before updating", () => StrataUpdates.Enabled, v => StrataUpdates.Enabled = v);
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                GUILayout.Label("Version " + StrataUpdates.Version, EditorStyles.miniLabel);
-                if (GUILayout.Button("Check now", EditorStyles.miniButton, GUILayout.Width(80))) StrataUpdates.Check(true);
-                GUILayout.FlexibleSpace();
             }
 
             GUILayout.Space(14);
