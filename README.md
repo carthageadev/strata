@@ -1,45 +1,74 @@
+<div dir="rtl">
+
 # Strata
 
-![Strata](.github/banner.gif)
+[English](https://github.com/carthageadev/strata/blob/unity/README.md) · [الكود المصدري — فرع unity](https://github.com/carthageadev/strata/tree/unity)
 
-[![Download .unitypackage](https://img.shields.io/badge/Download-.unitypackage-2ea44f?style=for-the-badge)](https://github.com/carthageadev/strata/releases/latest/download/Strata.unitypackage)
+![عرض لأداة Strata](.github/banner.gif)
 
-A terrain painter for HD-2D maps in Unity.
+[![تنزيل حزمة Unity](https://img.shields.io/badge/Download-.unitypackage-2ea44f?style=for-the-badge)](https://github.com/carthageadev/strata/releases/latest/download/Strata.unitypackage)
 
-Paint levels, ground, walls, edges and stairs in the Scene view, then bake to a plain prefab. The tool does not need terrain dependencies to run.
+**أداة Strata لرسم التضاريس والخرائط بأسلوب HD-2D داخل Unity.**
 
-The painting tools run entirely in the Unity Editor.
-Baked terrains use regular Unity meshes and materials.
+ارسم مستويات الارتفاع والأرضيات والجدران والحواف والسلالم مباشرة في نافذة `Scene`، ثم حوّل النتيجة إلى `Prefab` عادي.
 
-## Setup
+تعمل أدوات الرسم داخل محرّر Unity فقط. تستخدم الخرائط الناتجة مجسّمات `Meshes` وخامات `Materials` عادية، ولا تحتاج إلى أدوات تحرير Strata أثناء تشغيل اللعبة.
 
-Unity 6 with URP. Copy this folder into `Assets/Strata` or clone this repo straight in your `Assets` folder
+## المزايا
 
-Or in the Package Manager, `+ > Install package from git URL` and paste:
+- رسم مستويات الارتفاع مع بناء الجدران تلقائيًا عند التقاء مستويين مختلفين.
+- طلاء الأرض بطبقات مثل العشب والرمل والرصف، واختيار نمط الجدران لكل جانب.
+- إنشاء سلالم وبسطات بين ارتفاعين، بالحجر أو الخشب أو باستخدام مجسّمات درجات مخصّصة.
+- تشكيل التلال والوديان والمنحدرات.
+- **السحب والإفلات:** أضف الصور والخامات والمجسّمات إلى نافذة Strata، حتى مباشرة من مستعرض الملفات. تتعرّف الأداة على خرائط اللون والسطح والخشونة من أسماء الملفات، وتضبط إعدادات الاستيراد وتجهّز الخامات وخرائط `ORM`.
+- تنظيم مجموعات البلاطات والحزم ومشاركتها بصيغة `.unitypackage`.
+- استخدام `Pixel Bake` لإعطاء العناصر الزخرفية مظهرًا بأسلوب فن البكسل يناسب التضاريس.
+- التراجع عن كل ضربة فرشاة، ونسخ احتياطية عند إجراء `Bake`، واستعادة العمل بعد التعطّل.
 
+## المتطلبات
+
+- محرّر **Unity 6**، بدءًا من `6000.0`.
+- خط التصيير **Universal Render Pipeline — URP**. تعتمد الحزمة على الإصدار `17.0.3`.
+
+## التثبيت
+
+### عبر Package Manager
+
+من نافذة `Package Manager`، اختر `+ > Install package from git URL` وألصق الرابط التالي:
+
+<div dir="ltr">
+
+```text
+https://github.com/carthageadev/strata.git#unity
 ```
-https://github.com/carthageadev/strata.git
-```
 
-Strata checks for a new version once a session and asks before updating. Turn it off in `Preferences > Strata > Updates`.
+</div>
 
-## What it does
+يشير الرابط إلى فرع `unity` الذي يحتوي على الأداة.
 
-- paint levels and the walls build them self where two levels meet, no floating floors
-- ground layers like grass, paving, sand, and pick the wall style per side
-- stairs between two heights, a flight or a landing, stone or timber or your own step models
-- curved stuff like hills, valleys and ramps
-- **drag and drop**: grab textures or meshes and drop them on the strata window, it makes the materials for you. it reads albedo, normal, roughness etc from the file names, sets the import settings (normals, linear maps, point filter for pixel art) and packs an ORM map. walls and bricks go to sides, trims to edges, step models become stairs. works with files straight from explorer too
-- tile sets and packs, share them as a .unitypackage
-- pixel bake: select props and give them pixel art faces that match ur terrain
-- bake gives a plain prefab, ur map dont need strata to run
-- undo on every stroke, backups when u bake, crash recovery
+### التثبيت اليدوي
 
-## Use
+انسخ مجلد الأداة إلى `Assets/Strata` داخل مشروع Unity، أو استنسخ المستودع داخل مجلد `Assets`.
 
-- `Tools > Strata > New Terrain` to start
-- `Tools > Strata > Terrain Editor` to paint
-- `Tools > Strata > Materials` for tile sets
-- `Tools > Strata > Pixel Bake Selection` to give props pixel art faces
+يمكنك أيضًا تنزيل حزمة `.unitypackage` من [آخر إصدار](https://github.com/carthageadev/strata/releases/latest) واستيرادها إلى مشروعك.
 
-Open `Examples/Strata Sandbox` to try it.
+## البداية السريعة
+
+1. أنشئ تضاريس جديدة من `Tools > Strata > New Terrain`.
+2. افتح أدوات الرسم من `Tools > Strata > Terrain Editor`، وابدأ العمل في نافذة `Scene`.
+3. اختر مجموعات البلاطات من `Tools > Strata > Materials`.
+4. استخدم `Bake` لحفظ النتيجة وتحديث المجسّمات ومصادمات `Colliders`.
+5. لإعطاء العناصر الزخرفية مظهر البكسل، حدّدها ثم اختر `Tools > Strata > Pixel Bake Selection`.
+
+للتجربة، افتح مشهد `Examples/Strata Sandbox` المرفق مع الأداة.
+
+## التحديثات
+
+تتحقّق Strata من وجود إصدار جديد مرة واحدة في كل جلسة، وتطلب موافقتك قبل التحديث. يمكنك إيقاف التحقّق من `Preferences > Strata > Updates`.
+
+## المساهمة والمساعدة
+
+- للإبلاغ عن مشكلة أو اقتراح ميزة، افتح [Issue](https://github.com/carthageadev/strata/issues/new). اذكر إصدار Unity وخطوات إعادة المشكلة، وأرفق صورة أو رسالة الخطأ إن أمكن.
+- للمساهمة في الكود أو تحسين التوثيق والترجمة، افتح [Pull request](https://github.com/carthageadev/strata/pulls) يوضّح التغيير وسبب الحاجة إليه.
+
+</div>
