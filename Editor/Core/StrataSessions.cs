@@ -50,23 +50,14 @@ namespace Strata
                 .OrderBy(f => f).ToArray();
         }
 
-        public static string[] TerrainsInScene()
+        //! ask unity for the prefab instances, walking every transform took 20ms on the v3 village
+        public static string[] TerrainsInScene(string[] found = null)
         {
             var list = new List<string>();
-            var instances = new HashSet<GameObject>();
-            for (int s = 0; s < SceneManager.sceneCount; s++)
+            foreach (var path in found ?? FindTerrains())
             {
-                var scene = SceneManager.GetSceneAt(s);
-                if (!scene.isLoaded) continue;
-                foreach (var go in scene.GetRootGameObjects())
-                    foreach (var t in go.GetComponentsInChildren<Transform>(true))
-                        if (PrefabUtility.IsAnyPrefabInstanceRoot(t.gameObject)) instances.Add(PrefabUtility.GetCorrespondingObjectFromSource(t.gameObject));
-            }
-            foreach (var path in FindTerrains())
-            {
-                string name = Path.GetFileNameWithoutExtension(path);
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{Path.GetDirectoryName(path).Replace('\\', '/')}/{name}.prefab");
-                if (prefab && instances.Contains(prefab)) list.Add(path);
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.ChangeExtension(path, ".prefab"));
+                if (prefab && PrefabUtility.FindAllInstancesOfPrefab(prefab).Length > 0) list.Add(path);
             }
             return list.ToArray();
         }
