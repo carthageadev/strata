@@ -9,6 +9,7 @@ using UnityEngine.Networking;
 namespace Strata
 {
     // once per session: is there a newer release on github? asks first, never updates on its own
+    //! nothing else in strata uses this file, delete it and strata just stops checking
     [InitializeOnLoad]
     static class StrataUpdates
     {
@@ -16,6 +17,23 @@ namespace Strata
         const string Off = "Strata.UpdatesOff", Asked = "Strata.UpdateAsked";
 
         public static bool Enabled { get => !EditorPrefs.GetBool(Off, false); set => EditorPrefs.SetBool(Off, !value); }
+
+        [SettingsProvider]
+        static SettingsProvider Page() => new SettingsProvider("Preferences/Strata/Updates", SettingsScope.User)
+        {
+            keywords = new[] { "Strata", "update", "version" },
+            guiHandler = _ =>
+            {
+                GUILayout.Space(10);
+                Enabled = EditorGUILayout.Toggle(new GUIContent("Check for updates on start", "Once per session, asks before updating"), Enabled);
+                GUILayout.Space(6);
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    GUILayout.Label("Version " + Version, EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
+                    if (GUILayout.Button("Check now", EditorStyles.miniButton, GUILayout.Width(80))) Check(true);
+                }
+            },
+        };
 
         static StrataUpdates()
         {
