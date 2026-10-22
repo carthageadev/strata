@@ -80,7 +80,6 @@ namespace Strata
             else if (item) settingsH = float.MaxValue;
         }
 
-        // each panel keeps its last height, or closing a material flashed a big empty box for a frame
         readonly Dictionary<Type, float> panelH = new Dictionary<Type, float>();
         static Type PanelOf(Object item) => item ? item.GetType() : typeof(StrataTileSet);
         void MarkStale() { stale = true; repaint(); }
@@ -338,10 +337,8 @@ namespace Strata
 
         string PackName(Object o) => o && packOf.TryGetValue(o, out var p) ? p : null;
 
-        //! only draw tiles in view, drawing all of them every event made scrolling lag
         bool Seen(Rect r) => r.yMax >= listScroll.y && r.y <= listScroll.y + viewH;
 
-        // installed from git or the registry: unity keeps the package read only
         static bool Locked(Object o)
         {
             string path = o ? AssetDatabase.GetAssetPath(o) : null;
