@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5cf77ad00f3bddf47995f4470176cdfb, type: 3}
+  m_Name: Brick
+  m_EditorClassIdentifier: Strata.Editor::Strata.StrataMaterial
+  displayName: 
+  meantAs: 2
+  albedo: {fileID: 2800000, guid: b7e1e4772672abf47bc9bab835e6e5a4, type: 3}
+  normal: {fileID: 2800000, guid: d54ec6c25697e3c4bb8d8cfb501114e3, type: 3}
+  metallic: {fileID: 0}
+  occlusion: {fileID: 0}
+  packed: {fileID: 2800000, guid: 1152916c570d6944aa12ebb9b8198acf, type: 3}
+  tint: {r: 1, g: 1, b: 1, a: 1}
+  pixelSize: 0
+  smoothness: 0.1
+  metalness: 0
+  priority: 5
+  family: 1
+  wobble: 0.4
+  ragged: 0.12
+  edgePattern: 1
+  edgeTexture: 1
+  edgeDark: {r: 0.34, g: 0.47, b: 0.17, a: 1}
+  edgeLight: {r: 0.46, g: 0.6, b: 0.26, a: 1}
