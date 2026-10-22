@@ -23,19 +23,69 @@ https://github.com/carthageadev/strata.git
 
 Strata checks for a new version once a session and asks before updating. Turn it off in `Preferences > Strata > Updates`.
 
-## What it does
+## Start here
 
-- paint levels and the walls build them self where two levels meet, no floating floors
-- ground layers like grass, paving, sand, and pick the wall style per side
-- stairs between two heights, a flight or a landing, stone or timber or your own step models
-- curved stuff like hills, valleys and ramps
-- **drag and drop**: grab textures or meshes and drop them on the strata window, it makes the materials for you. it reads albedo, normal, roughness etc from the file names, sets the import settings (normals, linear maps, point filter for pixel art) and packs an ORM map. walls and bricks go to sides, trims to edges, step models become stairs. works with files straight from explorer too. if u didnt pick a set they go in the Default Set
-- one terrain can use 12 tops, 15 sides and 15 edges max (stairs got no limit), its how the paint gets saved for now. the strata window shows what ur terrain uses and warns u before ur full
-- tile sets and packs, share them as a .unitypackage
-- bake gives a plain prefab, ur map dont need strata to run
-- undo on every stroke, backups when u bake, crash recovery
+the simplest way to start: make a terrain, drag ur textures on the strata window and paint. thats it
 
-## Use
+1. `Tools > Strata > New Terrain`, pick a size and hit Create. it paints with the Default Set
+
+![New terrain](.github/readme/new-terrain.webp)
+
+2. drag ur textures on the strata window, one or a whole folder, even straight from explorer. they become materials for u
+
+![Drop textures](.github/readme/drop.webp)
+
+3. hit Edit and paint in the Scene view
+
+![Paint](.github/readme/paint.webp)
+
+## Brushes
+
+**Level** raises or lowers the ground. walls build them self where two levels meet, no floating floors
+
+![Level](.github/readme/levels.webp)
+
+**Walls**: the Level brush with only Sides on restyles the walls and the edge on top, without touching the height
+
+![Walls](.github/readme/walls.webp)
+
+**Stairs** go between two heights, a flight or a landing. stone, timber or ur own step models
+
+![Stairs](.github/readme/stairs.webp)
+
+**Shape** makes hills, valleys, craters and ramps
+
+![Shapes](.github/readme/shapes.webp)
+
+**Revert** paints a spot back to how the terrain was first made
+
+## Materials
+
+the Materials tab is where ur stuff lives. tops are the ground, sides are the walls, edges are the trim on top of the walls, and stairs. new ones blink so u see where they went
+
+![Materials](.github/readme/materials.webp)
+
+- the name decides the kind: wall, brick, cliff go to sides, edge, trim, coping go to edges, step models go to stairs, the rest are tops. drop on a section to pick the kind urself
+- maps get matched by name (albedo, normal, roughness, ao...), normals get set up and small textures stay pixel sharp
+- if u didnt pick a set it all goes in the Default Set
+- share a material, a tile set or a pack as a .unitypackage
+
+## Limits
+
+one terrain can use 12 tops, 15 sides and 15 edges, stairs got no limit. its how the paint gets saved for now. the strata window shows what ur terrain uses, grey ones arent painted yet. it turns orange when ur almost full and red when ur full
+
+![On this terrain](.github/readme/limits.webp)
+
+## Bake
+
+Bake saves it all as a plain prefab, ur map dont need strata to run. undo works on every stroke, it backs up when u bake and it gets ur edits back if unity crashes
+
+![Terrain](.github/readme/terrain.webp)
+
+
+
+
+## Menus
 
 - `Tools > Strata > New Terrain` to start
 - `Tools > Strata > Terrain Editor` to paint
