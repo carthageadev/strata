@@ -34,7 +34,7 @@
 
 ### عبر Package Manager
 
-من نافذة `Package Manager`، اختر `+ > Install package from git URL` وألصق الرابط التالي:
+من نافذة `Package Manager`، اختر <code dir="ltr">+ &gt; Install package from git URL</code> وألصق الرابط التالي:
 
 <div dir="ltr">
 
