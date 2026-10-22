@@ -16,8 +16,6 @@ namespace Strata
         //! and the title was black on the dark skin
         [NonSerialized] GUIStyle small, box, dropTitle, dropText;
         [NonSerialized] bool stylesPro;
-        //! the terrain tab scanned the disk and the whole scene every redraw (70ms!!), now only when something changes
-        //! never null the lists, a button can change things in the middle of drawing. just mark them old
         [NonSerialized] string[] found, here, backups;
         [NonSerialized] bool mapPresent, converted, packMade, gridReady, filesKnown, sceneKnown, backupsKnown;
         [SerializeField] int tab;
