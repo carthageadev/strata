@@ -1,0 +1,93 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Sandbox_Ground
+  m_Shader: {fileID: 4800000, guid: e163d08abed221e449491b69806a5fce, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _EdgeAlbedo:
+        m_Texture: {fileID: -2936179760289408868, guid: c382d96aaf884864aa103e400cf99eba, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _EdgeTable:
+        m_Texture: {fileID: -8590949679411696321, guid: c382d96aaf884864aa103e400cf99eba, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GroundAlbedo:
+        m_Texture: {fileID: -1587598525466276217, guid: c382d96aaf884864aa103e400cf99eba, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GroundNormal:
+        m_Texture: {fileID: -1049021637884021308, guid: c382d96aaf884864aa103e400cf99eba, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GroundORM:
+        m_Texture: {fileID: -5499157961700336910, guid: c382d96aaf884864aa103e400cf99eba, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Mask:
+        m_Texture: {fileID: 2800000, guid: 29699db3e546ef24580859cddb228073, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NoiseMap:
+        m_Texture: {fileID: 2800000, guid: 0affab5a33306974fa49172aaa27425d, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Splat0:
+        m_Texture: {fileID: 2800000, guid: 05c50f0157b564e42af06018aa1bc575, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Splat1:
+        m_Texture: {fileID: 2800000, guid: 71cee1e44fbae7d4fbe570142832d4a6, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Splat2:
+        m_Texture: {fileID: 2800000, guid: 246ebef2b50b4ad4bb696582665c548a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Brightness: 1
+    - _Macro: 0.5
+    - _SlopeLayer: 5
+    - _StrataCodes: 2
+    m_Colors:
+    - _Class0: {r: 1, g: 0, b: 2, a: 0}
+    - _Class1: {r: 1, g: 3, b: 1, a: 1}
+    - _Class2: {r: 2, g: 0, b: 0, a: 2}
+    - _CopingDark: {r: 0.36, g: 0.32, b: 0.24, a: 1}
+    - _CopingLight: {r: 0.54, g: 0.49, b: 0.37, a: 1}
+    - _Grid: {r: -32, g: -32, b: 64, a: 64}
+    - _Prio0: {r: 7, g: 2, b: 9, a: 1}
+    - _Prio1: {r: 6, g: 4, b: 7, a: 5}
+    - _Prio2: {r: 10, g: 3, b: 2, a: 9}
+    - _Rag0: {r: 0.16, g: 0.12, b: 0.03, a: 0.1}
+    - _Rag1: {r: 0.18, g: 0.1, b: 0.16, a: 0.15}
+    - _Rag2: {r: 0.02, g: 0.03, b: 0.12, a: 0.03}
+    - _StonesDark: {r: 0.4, g: 0.3, b: 0.16, a: 1}
+    - _StonesLight: {r: 0.6, g: 0.48, b: 0.28, a: 1}
+    - _TurfLip: {r: 0.46, g: 0.6, b: 0.26, a: 1}
+    - _Wob0: {r: 0.42, g: 0.34, b: 0.1, a: 0.4}
+    - _Wob1: {r: 0.5, g: 0.3, b: 0.42, a: 0.45}
+    - _Wob2: {r: 0.07, g: 0.1, b: 0.34, a: 0.1}
+    - _World: {r: -32, g: -32, b: 64, a: 64}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
