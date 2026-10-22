@@ -8,7 +8,7 @@ Paint levels, ground, walls, edges and stairs in the Scene view, then bake to a 
 
 ## Setup
 
-Unity 6 with URP. Copy this folder into `Assets/Strata`.
+Unity 6 with URP. Copy this folder into `Assets/Strata` or clone this repo straight in your `Assets` folder
 
 ## Use
 
