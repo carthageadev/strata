@@ -1,5 +1,7 @@
 # Strata
 
+![Strata](.github/banner.gif)
+
 A terrain painter for HD-2D maps in Unity.
 
 Paint levels, ground, walls, edges and stairs in the Scene view, then bake to a plain prefab. The tool does not need terrain dependencies to run.
