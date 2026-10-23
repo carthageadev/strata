@@ -20,7 +20,7 @@ MonoBehaviour:
   occlusion: {fileID: 0}
   packed: {fileID: 0}
   tint: {r: 1, g: 1, b: 1, a: 1}
-  pixelSize: 0
+  pixelSize: 2
   smoothness: 0.100000024
   metalness: 0
   priority: 5
