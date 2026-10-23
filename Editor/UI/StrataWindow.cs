@@ -16,6 +16,10 @@ namespace Strata
         //! and the title was black on the dark skin
         [NonSerialized] GUIStyle small, box, dropTitle, dropText;
         [NonSerialized] bool stylesPro;
+        //! the terrain tab scanned the disk and the whole scene every redraw (70ms!!), now only when something changes
+        //! never null the lists, a button can change things in the middle of drawing. just mark them old
+        [NonSerialized] string[] found, here, backups;
+        [NonSerialized] bool mapPresent, converted, packMade, gridReady, filesKnown, sceneKnown, backupsKnown;
         [SerializeField] int tab;
         [SerializeField] StrataTileSet materialsLibrary;
         StrataMaterialsView materials;
@@ -45,15 +49,41 @@ namespace Strata
         void OnEnable()
         {
             titleContent = new GUIContent("Strata", StrataIcons.Tool);
-            StrataSessions.Changed += Repaint;
+            StrataSessions.Changed += SessionChanged;
+            EditorApplication.projectChanged += Forget;
+            EditorApplication.hierarchyChanged += SceneChanged;
             materials = new StrataMaterialsView(Repaint) { library = materialsLibrary };
         }
 
         void OnDisable()
         {
-            StrataSessions.Changed -= Repaint;
+            StrataSessions.Changed -= SessionChanged;
+            EditorApplication.projectChanged -= Forget;
+            EditorApplication.hierarchyChanged -= SceneChanged;
             materialsLibrary = materials.library;
             materials.Dispose();
+        }
+
+        void OnFocus() => Forget();
+        void Forget() { filesKnown = sceneKnown = backupsKnown = false; Repaint(); }
+        void SessionChanged() { sceneKnown = backupsKnown = false; Repaint(); }
+        void SceneChanged() { sceneKnown = false; if (tab == 0) Repaint(); }
+
+        void Know()
+        {
+            var t = StrataSessions.Active;
+            if (!filesKnown)
+            {
+                filesKnown = true;
+                sceneKnown = false;
+                found = StrataSessions.FindTerrains();
+                mapPresent = VillageV2Profile.MapPresent;
+                converted = VillageV2Profile.Converted;
+                packMade = VillageV2Profile.PackMade;
+                gridReady = VillageV2Import.Available;
+            }
+            if (!sceneKnown) { sceneKnown = true; here = t == null ? StrataSessions.TerrainsInScene(found) : new string[0]; }
+            if (!backupsKnown) { backupsKnown = true; backups = t != null ? StrataTerrain.Backups(t.Name) : new string[0]; }
         }
 
         void Styles()
@@ -136,6 +166,7 @@ namespace Strata
 
         void TerrainTab()
         {
+            Know();
             scroll = EditorGUILayout.BeginScrollView(scroll);
 
             if (!string.IsNullOrEmpty(StrataSessions.Notice) && !StrataSessions.RecoveryOffered) EditorGUILayout.HelpBox(StrataSessions.Notice, MessageType.Info);
@@ -144,8 +175,8 @@ namespace Strata
             var t = StrataSessions.Active;
             if (t != null) OpenTerrain(t); else Terrains();
 
-            if (VillageV2Profile.MapPresent && !VillageV2Profile.Converted) Village V2();
-            if (VillageV2Profile.MapPresent && !VillageV2Profile.PackMade && GUILayout.Button(new GUIContent("Make Village V2's Strata pack", "Village V2's ground, walls, edges and stairs as Strata materials, kept with the map, so Strata terrains can paint with them"), GUILayout.Height(24)))
+            if (mapPresent && !converted) Village V2();
+            if (mapPresent && !packMade && GUILayout.Button(new GUIContent("Make Village V2's Strata pack", "Village V2's ground, walls, edges and stairs as Strata materials, kept with the map, so Strata terrains can paint with them"), GUILayout.Height(24)))
                 Run(() => message = VillageV2Profile.MakePack());
             if (GUILayout.Button(new GUIContent("New terrain…", "Also GameObject > Strata > Terrain, or right-click in the Hierarchy"), GUILayout.Height(24))) StrataNewTerrain.Open();
             Keys();
@@ -214,7 +245,7 @@ namespace Strata
 
         void Backups(StrataTerrain t)
         {
-            var list = StrataTerrain.Backups(t.Name);
+            var list = backups;
             GUILayout.Space(4);
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -242,10 +273,8 @@ namespace Strata
             using (new EditorGUILayout.VerticalScope(box))
             {
                 GUILayout.Label("Terrains", EditorStyles.boldLabel);
-                var here = StrataSessions.TerrainsInScene();
-                var all = StrataSessions.FindTerrains();
-                if (all.Length == 0) GUILayout.Label("None yet.", small);
-                foreach (var path in all)
+                if (found.Length == 0) GUILayout.Label("None yet.", small);
+                foreach (var path in found)
                 {
                     using (new EditorGUILayout.HorizontalScope())
                     {
@@ -263,8 +292,8 @@ namespace Strata
             {
                 GUILayout.Label("Village V2", EditorStyles.boldLabel);
                 GUILayout.Label("Rebuilds the exported terrain as an editable one, checks it matches, and swaps it in. The scene is backed up first.", small);
-                if (!VillageV2Import.Available) EditorGUILayout.HelpBox("Generated/Data/terrainGrid.bin is missing: re-export the map from the web version.", MessageType.Warning);
-                GUI.enabled = VillageV2Import.Available;
+                if (!gridReady) EditorGUILayout.HelpBox("Generated/Data/terrainGrid.bin is missing: re-export the map from the web version.", MessageType.Warning);
+                GUI.enabled = gridReady;
                 if (GUILayout.Button("Make Village V2's terrain editable", GUILayout.Height(26)))
                     Run(() =>
                     {

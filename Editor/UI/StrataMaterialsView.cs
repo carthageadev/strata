@@ -28,9 +28,10 @@ namespace Strata
         readonly Action repaint;
         SerializedObject so;
         Role selRole;
-        GUIStyle tileName, tileTag, sectionTitle, count, slotLabel, panel, panelTitle;
+        GUIStyle tileName, tileTag, plus, sectionTitle, count, slotLabel, panel, panelTitle;
         bool stylesPro;
         Vector2 listScroll, settingsScroll;
+        float viewH;
         float settingsH;
         string renaming;
         bool healing;
@@ -41,6 +42,13 @@ namespace Strata
         List<StrataTileSet> sets = new List<StrataTileSet>();
         List<(StrataMaterial item, string pack)> materials = new List<(StrataMaterial, string)>();
         List<(StrataStairType item, string pack)> stairTypes = new List<(StrataStairType, string)>();
+        Dictionary<Object, string> packOf = new Dictionary<Object, string>();
+        Dictionary<Role, List<StrataMaterial>> kinds = new Dictionary<Role, List<StrataMaterial>>();
+        List<StrataStairType> stairList = new List<StrataStairType>();
+        List<StrataTileSet> pickSets;
+        GUIContent[] pickNames;
+        StrataTileSet pickedFor;
+        readonly GUIContent tileLabel = new GUIContent();
         bool stale = true;
 
         static readonly Color Accent = new Color(0.95f, 0.72f, 0.3f);
@@ -63,7 +71,16 @@ namespace Strata
             if (buildAt > 0) BuildNow();
         }
 
-        public void Select(Object item, Role role = Role.Top) { selected = item; selRole = role; so = null; renaming = null; settingsScroll = Vector2.zero; }
+        public void Select(Object item, Role role = Role.Top)
+        {
+            selected = item; selRole = role; so = null; renaming = null; settingsScroll = Vector2.zero;
+            if (panelH.TryGetValue(PanelOf(item), out float h)) settingsH = h;
+            else if (item) settingsH = float.MaxValue;
+        }
+
+        // each panel keeps its last height, or closing a material flashed a big empty box for a frame
+        readonly Dictionary<Type, float> panelH = new Dictionary<Type, float>();
+        static Type PanelOf(Object item) => item ? item.GetType() : typeof(StrataTileSet);
         void MarkStale() { stale = true; repaint(); }
 
         //! cached, dont call AssetDatabase in OnGUI again it was lagging like crazy
@@ -76,6 +93,10 @@ namespace Strata
             string PackOf(Object o) => packs.FirstOrDefault(p => o is StrataMaterial m ? p.materials.Contains(m) : p.stairs.Contains((StrataStairType)o))?.Title ?? Mine;
             materials = AssetDatabase.FindAssets("t:StrataMaterial").Select(g => AssetDatabase.LoadAssetAtPath<StrataMaterial>(AssetDatabase.GUIDToAssetPath(g))).Where(x => x).Select(x => (x, PackOf(x))).OrderBy(x => x.Item2 == Mine).ThenBy(x => x.Item2).ThenBy(x => x.Item1.Title).ToList();
             stairTypes = AssetDatabase.FindAssets("t:StrataStairType").Select(g => AssetDatabase.LoadAssetAtPath<StrataStairType>(AssetDatabase.GUIDToAssetPath(g))).Where(x => x).Select(x => (x, PackOf(x))).OrderBy(x => x.Item2 == Mine).ThenBy(x => x.Item2).ThenBy(x => x.Item1.Title).ToList();
+            packOf = materials.Select(x => ((Object)x.item, x.pack)).Concat(stairTypes.Select(x => ((Object)x.item, x.pack))).GroupBy(x => x.Item1).ToDictionary(g => g.Key, g => g.First().Item2);
+            kinds = new[] { Role.Top, Role.Side, Role.Edge }.ToDictionary(r => r, r => materials.Where(x => (x.item.meantAs & UseOf(r)) != 0).Select(x => x.item).ToList());
+            stairList = stairTypes.Select(x => x.item).ToList();
+            pickNames = null;
         }
 
         void Tick() { if (buildAt > 0 && EditorApplication.timeSinceStartup >= buildAt) { buildAt = -1; BuildNow(); } }
@@ -112,6 +133,7 @@ namespace Strata
             sectionTitle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 12 };
             count = new GUIStyle(EditorStyles.miniLabel);
             count.normal.textColor = new Color(0.55f, 0.55f, 0.55f);
+            plus = new GUIStyle(tileName) { fontSize = 16 };
             slotLabel = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.UpperCenter };
             panel = new GUIStyle(EditorStyles.helpBox) { padding = new RectOffset(8, 8, 6, 8), margin = new RectOffset(4, 4, 4, 4) };
             panelTitle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 13, clipping = TextClipping.Clip };
@@ -121,6 +143,7 @@ namespace Strata
         {
             Styles();
             Gather();
+            viewH = height;
             if (!selected && !ReferenceEquals(selected, null)) Select(null);
             Picker();
             var active = StrataSessions.Active;
@@ -128,7 +151,7 @@ namespace Strata
                 EditorGUILayout.HelpBox("Village V2's terrain draws with its own materials; tile sets are for Strata terrains.", MessageType.None);
             if (!library && !all) { GUILayout.Label("Pick a tile set.", EditorStyles.miniLabel); return; }
             if (!all && !library.Current) { library.Upgrade(); Schedule(); }
-            if (!all && !healing && (library.tops.Any(x => !x) || library.sides.Any(x => !x) || library.edges.Any(x => !x) || library.stairs.Any(x => !x)))
+            if (!all && !healing && (Holes(library.tops) || Holes(library.sides) || Holes(library.edges) || Holes(library.stairs)))
             {
                 healing = true;
                 Later(() => { BasicProfile.Heal(library); healing = false; Select(null); });
@@ -187,6 +210,7 @@ namespace Strata
                 if (Event.current.type == EventType.Repaint)
                 {
                     float got = GUILayoutUtility.GetLastRect().height;
+                    panelH[PanelOf(selected)] = got;
                     if (Mathf.Abs(got - settingsH) > 0.5f) { settingsH = got; repaint(); }
                 }
                 EditorGUILayout.EndScrollView();
@@ -195,23 +219,31 @@ namespace Strata
 
         void EditSet() => PixelGrid();
 
+        static readonly GUIContent GridLabel = new GUIContent("Pixel grid", "The pixel grid blends follow. Each material's own: found from its art (or set on it). Or force one resolution for a 16 m tile: 256 is every texel, 32 is pixels of 8 x 8 texels.");
+        static readonly GUIContent[] GridNames = { new GUIContent("Each material's own"), new GUIContent("512"), new GUIContent("256 (every texel)"), new GUIContent("128"), new GUIContent("64"), new GUIContent("32"), new GUIContent("16") };
+        static readonly int[] GridValues = { 0, 512, 256, 128, 64, 32, 16 };
+
         void PixelGrid()
         {
             int grid = library.pixelGrid;
-            int pick = EditorGUILayout.IntPopup(new GUIContent("Pixel grid", "The pixel grid blends follow. Each material's own: found from its art (or set on it). Or force one resolution for a 16 m tile: 256 is every texel, 32 is pixels of 8 x 8 texels."),
-                grid, new[] { new GUIContent("Each material's own"), new GUIContent("512"), new GUIContent("256 (every texel)"), new GUIContent("128"), new GUIContent("64"), new GUIContent("32"), new GUIContent("16") }, new[] { 0, 512, 256, 128, 64, 32, 16 });
+            int pick = EditorGUILayout.IntPopup(GridLabel, grid, GridNames, GridValues);
             if (pick != grid) { Undo.RecordObject(library, "Strata: pixel grid"); library.pixelGrid = pick; EditorUtility.SetDirty(library); Schedule(); }
         }
 
         void Picker()
         {
-            var list = sets.ToList();
-            if (library && !list.Contains(library)) list.Insert(0, library);
-            var names = list.Select(x => new GUIContent(x.name, AssetDatabase.GetAssetPath(x))).ToList();
-            names.Add(new GUIContent("All materials", "Every Strata material and stair type in the project"));
-            names.Add(new GUIContent("New tile set…", "A new tile set using the same items as this one"));
+            if (pickNames == null || pickedFor != library)
+            {
+                pickedFor = library;
+                pickSets = sets.ToList();
+                if (library && !pickSets.Contains(library)) pickSets.Insert(0, library);
+                pickNames = pickSets.Select(x => new GUIContent(x.name, AssetDatabase.GetAssetPath(x)))
+                    .Append(new GUIContent("All materials", "Every Strata material and stair type in the project"))
+                    .Append(new GUIContent("New tile set…", "A new tile set using the same items as this one")).ToArray();
+            }
+            var list = pickSets;
             int at = all ? list.Count : Mathf.Max(0, list.IndexOf(library));
-            int pick = EditorGUILayout.Popup(at, names.ToArray(), GUILayout.Height(20));
+            int pick = EditorGUILayout.Popup(at, pickNames, GUILayout.Height(20));
             if (pick == at) return;
             if (pick == list.Count) { all = true; Select(null); }
             else if (pick == list.Count + 1) Later(NewLibrary);
@@ -223,17 +255,19 @@ namespace Strata
 
         void Kind(Role role, string title, float width)
         {
-            var shown = all ? materials.Where(x => (x.item.meantAs & UseOf(role)) != 0).Select(x => x.item).ToList() : library.List(role);
+            var shown = all ? kinds[role] : library.List(role);
             bool room = all || shown.Count < StrataTileSet.Max(role);
             Header(title, all ? $"{shown.Count}" : $"{shown.Count} / {StrataTileSet.Max(role)}");
             var area = Grid(shown.Count + (room ? 1 : 0), width, out int perRow);
             for (int i = 0; i < shown.Count; i++)
             {
+                var cell = Cell(area, i, perRow);
+                if (!Seen(cell)) continue;
                 var item = shown[i];
                 if (!item) continue;
                 string tag = all ? PackName(item) : role == Role.Top ? (library.slopeLayer == i ? "slopes" : PackName(item)) : i == 0 ? "natural" : i == 1 ? "by stairs" : PackName(item);
                 bool textured = role != Role.Edge || item.EdgeTextured;
-                Tile(Cell(area, i, perRow), item, role, textured ? item.albedo : null, role == Role.Edge ? item.edgeDark : (Color?)null, role == Role.Edge ? item.edgeLight : (Color?)null, item.Title, tag);
+                Tile(cell, item, role, textured ? item.albedo : null, role == Role.Edge ? item.edgeDark : (Color?)null, role == Role.Edge ? item.edgeLight : (Color?)null, item.Title, tag);
             }
             if (room && AddTile(Cell(area, shown.Count, perRow), $"Add a {title.ToLower().TrimEnd('s')} (or drop textures here)"))
             {
@@ -245,12 +279,12 @@ namespace Strata
 
         void Stairs(float width)
         {
-            var shown = all ? stairTypes.Select(x => x.item).ToList() : library.stairs;
+            var shown = all ? stairList : library.stairs;
             bool room = all || shown.Count < StrataTileSet.MaxStairs;
             Header("Stairs", all ? $"{shown.Count}" : $"{shown.Count} / {StrataTileSet.MaxStairs}");
             var area = Grid(shown.Count + (room ? 1 : 0), width, out int perRow);
             for (int i = 0; i < shown.Count; i++)
-                if (shown[i]) Tile(Cell(area, i, perRow), shown[i], Role.Top, shown[i].Preview, null, null, shown[i].Title, PackName(shown[i]));
+                if (Seen(Cell(area, i, perRow)) && shown[i]) Tile(Cell(area, i, perRow), shown[i], Role.Top, shown[i].Preview, null, null, shown[i].Title, PackName(shown[i]));
             if (room && AddTile(Cell(area, shown.Count, perRow), "Add a stair type (or drop a step model here)"))
             {
                 if (all) Later(NewStair);
@@ -292,11 +326,15 @@ namespace Strata
             }
         }
 
-        string PackName(Object o)
+        string PackName(Object o) => o && packOf.TryGetValue(o, out var p) ? p : null;
+
+        //! only draw tiles in view, drawing all of them every event made scrolling lag
+        bool Seen(Rect r) => r.yMax >= listScroll.y && r.y <= listScroll.y + viewH;
+
+        static bool Holes<T>(List<T> list) where T : Object
         {
-            foreach (var (m, p) in materials) if (m == o) return p;
-            foreach (var (s, p) in stairTypes) if (s == o) return p;
-            return null;
+            foreach (var x in list) if (!x) return true;
+            return false;
         }
 
         Rect Grid(int n, float width, out int perRow)
@@ -326,9 +364,9 @@ namespace Strata
                 else EditorGUI.DrawRect(img, new Color(0.3f, 0.3f, 0.3f));
                 if (on) EditorGUI.DrawRect(new Rect(r.x, r.yMax - 2, r.width, 2), Accent);
             }
-            var label = new GUIContent(name, name);
-            tileName.alignment = tileName.CalcSize(label).x > r.width - 2 ? TextAnchor.UpperLeft : TextAnchor.UpperCenter;
-            GUI.Label(new Rect(r.x + 1, r.y + TileW - 8, r.width - 2, 14), label, tileName);
+            tileLabel.text = tileLabel.tooltip = name;
+            tileName.alignment = tileName.CalcSize(tileLabel).x > r.width - 2 ? TextAnchor.UpperLeft : TextAnchor.UpperCenter;
+            GUI.Label(new Rect(r.x + 1, r.y + TileW - 8, r.width - 2, 14), tileLabel, tileName);
             tileName.alignment = TextAnchor.UpperCenter;
             if (tag != null) GUI.Label(new Rect(r.x, r.y + TileW + 4, r.width, 12), tag, tileTag);
             if (r.Contains(e.mousePosition) && e.type == EventType.MouseDown)
@@ -343,7 +381,7 @@ namespace Strata
         bool AddTile(Rect r, string tip)
         {
             if (Event.current.type == EventType.Repaint) EditorGUI.DrawRect(r, new Color(0.5f, 0.5f, 0.5f, 0.06f));
-            GUI.Label(new Rect(r.x, r.y + TileW / 2 - 16, r.width, 20), "+", new GUIStyle(tileName) { fontSize = 16 });
+            GUI.Label(new Rect(r.x, r.y + TileW / 2 - 16, r.width, 20), "+", plus);
             GUI.Label(new Rect(r.x, r.y + TileW / 2 + 4, r.width, 14), "add", tileName);
             return GUI.Button(r, new GUIContent("", tip), GUIStyle.none);
         }
@@ -579,6 +617,10 @@ namespace Strata
             }
         }
 
+        static readonly (string, string)[] Slots = { ("albedo", "Albedo"), ("normal", "Normal"), ("metallic", "Metallic"), ("occlusion", "Occlusion"), ("packed", "Packed") };
+        static readonly GUIContent[] SizeNames = { new GUIContent("Found from the art"), new GUIContent("1 texel"), new GUIContent("2 texels"), new GUIContent("4 texels"), new GUIContent("8 texels"), new GUIContent("16 texels") };
+        static readonly int[] SizeValues = { 0, 1, 2, 4, 8, 16 };
+
         void EditMaterial(StrataMaterial m, float width)
         {
             if (so == null || so.targetObject != m) so = new SerializedObject(m);
@@ -586,7 +628,7 @@ namespace Strata
             Head(m);
             GUILayout.Space(6);
             EditorGUI.BeginChangeCheck();
-            var slots = new[] { ("albedo", "Albedo"), ("normal", "Normal"), ("metallic", "Metallic"), ("occlusion", "Occlusion"), ("packed", "Packed") };
+            var slots = Slots;
             var rect = GUILayoutUtility.GetRect(width, 82);
             float slotW = Mathf.Min(64, (rect.width - 4 * 6) / slots.Length);
             for (int k = 0; k < slots.Length; k++)
@@ -600,8 +642,7 @@ namespace Strata
             EditorGUILayout.PropertyField(so.FindProperty("meantAs"), new GUIContent("Kind", "Where it is listed: as a top, a side, an edge (any mix)"));
             EditorGUILayout.PropertyField(so.FindProperty("tint"));
             var ps = so.FindProperty("pixelSize");
-            ps.intValue = EditorGUILayout.IntPopup(new GUIContent("Pixel size", ps.tooltip), ps.intValue,
-                new[] { new GUIContent("Found from the art"), new GUIContent("1 texel"), new GUIContent("2 texels"), new GUIContent("4 texels"), new GUIContent("8 texels"), new GUIContent("16 texels") }, new[] { 0, 1, 2, 4, 8, 16 });
+            ps.intValue = EditorGUILayout.IntPopup(new GUIContent("Pixel size", ps.tooltip), ps.intValue, SizeNames, SizeValues);
             EditorGUILayout.PropertyField(so.FindProperty("smoothness"));
             EditorGUILayout.PropertyField(so.FindProperty("metalness"));
             if ((m.meantAs & StrataMaterial.Use.Top) != 0 || (!all && library.tops.Contains(m)))
@@ -627,7 +668,7 @@ namespace Strata
                 EditorGUILayout.PropertyField(so.FindProperty("edgeDark"), new GUIContent("Dark"));
                 EditorGUILayout.PropertyField(so.FindProperty("edgeLight"), new GUIContent("Light"));
             }
-            if (EditorGUI.EndChangeCheck()) { so.ApplyModifiedProperties(); Schedule(); }
+            if (EditorGUI.EndChangeCheck()) { so.ApplyModifiedProperties(); stale = true; Schedule(); }
         }
 
         void EditStair(StrataStairType st)
