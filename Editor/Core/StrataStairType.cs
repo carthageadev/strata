@@ -2,6 +2,9 @@ using UnityEngine;
 
 namespace Strata
 {
+    public enum StairSteps { Slabs = 0, Flagstones = 1, Logs = 2 }
+    public enum StairSides { CheekWalls = 0, Balustrade = 1, WingWalls = 2, None = 3 }
+
     [CreateAssetMenu(fileName = "New Stair Type", menuName = "Strata/Stair Type", order = 402)]
     public sealed class StrataStairType : ScriptableObject
     {
@@ -10,9 +13,11 @@ namespace Strata
         [Tooltip("The name shown in the Stairs brush (the asset's name when empty).")]
         public string displayName = "";
         public Build build = Build.Stone;
+        [Tooltip("Stone: what each step is.")] public StairSteps steps = StairSteps.Slabs;
+        [Tooltip("Stone: what runs along the sides.")] public StairSides sides = StairSides.CheekWalls;
         [Tooltip("Stone: the stepped body.")] public StrataMaterial body;
-        [Tooltip("Stone: the treads and the copings on cheek walls.")] public StrataMaterial tread;
-        [Tooltip("Stone: the cheek walls.")] public StrataMaterial cheek;
+        [Tooltip("Stone: the treads, slabs or logs, and the copings and rails.")] public StrataMaterial tread;
+        [Tooltip("Stone: the walls or the balustrade along the sides.")] public StrataMaterial cheek;
         [Tooltip("Timber: the planks.")] public StrataMaterial planks;
         [Tooltip("Timber: the posts.")] public StrataMaterial posts;
         [Tooltip("Models: one step, repeated up the flight and fitted to each step. Forward (+Z) climbs, +Y is up.")] public GameObject step;
@@ -26,9 +31,16 @@ namespace Strata
         public string Title => string.IsNullOrEmpty(displayName) ? name : displayName;
         public bool Timber => build == Build.Timber;
         public bool Models => build == Build.Models;
+        public bool HasSides => build == Build.Stone && sides != StairSides.None;
         public int Parts => Timber ? 2 : Models ? 0 : 3;
         public StrataMaterial Part(int k) => Timber ? (k == 0 ? planks : posts) : Models ? null : (k == 0 ? body : k == 1 ? tread : cheek);
-        public static string PartName(bool timber, int k) => timber ? (k == 0 ? "Planks" : "Posts") : (k == 0 ? "Body" : k == 1 ? "Treads" : "Cheek walls");
+        public string PartName(int k) => PartName(build, steps, sides, k);
+        public static string PartName(Build build, StairSteps steps, StairSides sides, int k) =>
+            build == Build.Timber ? (k == 0 ? "Planks" : "Posts")
+            : k == 0 ? "Body"
+            : k == 1 ? (steps == StairSteps.Logs ? "Logs" : steps == StairSteps.Flagstones ? "Slabs" : "Treads")
+            : SidesName(sides);
+        public static string SidesName(StairSides sides) => sides == StairSides.Balustrade ? "Balustrade" : sides == StairSides.WingWalls ? "Wing walls" : "Cheek walls";
         public Texture Preview => Models ? (step ? UnityEditor.AssetPreview.GetAssetPreview(step) ?? UnityEditor.AssetPreview.GetMiniThumbnail(step) : null) : (Part(0) ? Part(0).albedo : null);
     }
 }

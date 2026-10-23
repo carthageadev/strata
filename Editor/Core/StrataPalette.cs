@@ -10,12 +10,14 @@ namespace Strata
         public (int index, string name)[] walls = new (int, string)[0];
         public (int index, string name)[] rims = new (int, string)[0];
         public (int index, string name, bool timber)[] stairs = new (int, string, bool)[0];
+        public string[] stairSides;
         public Color[] wallColors = new Color[4], rimColors = new Color[4];
         public StrataTileSet library;
         public int stamp;
 
         public string StairName(int index) { foreach (var s in stairs) if (s.index == index) return s.name; return stairs.Length > 0 ? stairs[0].name : "Stone"; }
         public bool StairTimber(int index) { foreach (var s in stairs) if (s.index == index) return s.timber; return false; }
+        public string SidesLabel(int index) => stairSides != null && index >= 0 && index < stairSides.Length ? stairSides[index] : StairTimber(index) ? null : "Cheek walls";
 
         public string WallName(int index) { foreach (var w in walls) if (w.index == index) return w.name; return walls.Length > 0 ? walls[0].name : "Wall"; }
         public string RimName(int index) { foreach (var r in rims) if (r.index == index) return r.name; return rims.Length > 0 ? rims[0].name : "Rim"; }
