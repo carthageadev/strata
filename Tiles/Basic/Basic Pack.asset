@@ -32,3 +32,6 @@ MonoBehaviour:
   stairs:
   - {fileID: 11400000, guid: c53521dfbde3836458ef9c0c81d4a1b4, type: 2}
   - {fileID: 11400000, guid: 7b7b26a588a4b51439612c489287b553, type: 2}
+  - {fileID: 11400000, guid: 984b47d3bc2aac44db7811a07ba278ed, type: 2}
+  - {fileID: 11400000, guid: 18022002dc332df46be8243666263356, type: 2}
+  - {fileID: 11400000, guid: e82880fcc31a0aa4fa3a85683fc484c3, type: 2}
