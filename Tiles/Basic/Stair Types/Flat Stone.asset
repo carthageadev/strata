@@ -140,9 +140,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Strata.Editor::Strata.StrataStairType
   displayName: 
   build: 0
+  steps: 1
+  sides: 3
   body: {fileID: 11400000, guid: f137c92fad80154409913797e36487ab, type: 2}
   tread: {fileID: 11400000, guid: 059799df69105d848b6d2cb2f40e3cd2, type: 2}
-  cheek: {fileID: 11400000, guid: 059799df69105d848b6d2cb2f40e3cd2, type: 2}
+  cheek: {fileID: 11400000, guid: f137c92fad80154409913797e36487ab, type: 2}
   planks: {fileID: 0}
   posts: {fileID: 0}
   step: {fileID: 0}
@@ -220,11 +222,11 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 2800000, guid: d7104eae8b31c1f498953d42f1c558aa, type: 3}
+        m_Texture: {fileID: 2800000, guid: 7ff1eafd03b92cf4ca03640648ae0708, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NormalMap:
-        m_Texture: {fileID: 2800000, guid: 8de120aae68ece64b97140c2d8bbde71, type: 3}
+        m_Texture: {fileID: 2800000, guid: 9be374c9c4265d349855990737e74432, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []

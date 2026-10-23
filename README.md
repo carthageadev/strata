@@ -49,9 +49,11 @@ the simplest way to start: make a terrain, drag ur textures on the strata window
 
 ![Walls](.github/readme/walls.webp)
 
-**Stairs** go between two heights, a flight or a landing. stone, timber, dirt, flat stone, brick, marble or ur own step models
+**Stairs** go between two heights, a flight or a landing. each type got its own look: stone with cheek walls, timber on posts for piers, dirt held by logs, loose flat stones, brick between wing walls, marble with a balustrade, or ur own step models
 
 ![Stairs](.github/readme/stairs.webp)
+
+![Stair types](.github/readme/stair-types.webp)
 
 **Shape** makes hills, valleys, craters and ramps
 
@@ -67,6 +69,7 @@ the Materials tab is where ur stuff lives. tops are the ground, sides are the wa
 
 - the name decides the kind: wall, brick, cliff go to sides, edge, trim, coping go to edges, step models go to stairs, the rest are tops. drop on a section to pick the kind urself
 - maps get matched by name (albedo, normal, roughness, ao...), normals get set up and small textures stay pixel sharp
+- a stair type picks its steps (slabs, flagstones or logs) and its sides (cheek walls, balustrade, wing walls or none)
 - if u didnt pick a set it all goes in the Default Set
 - share a material, a tile set or a pack as a .unitypackage
 
@@ -88,7 +91,7 @@ Bake saves it all as a plain prefab, ur map dont need strata to run. undo works 
 - `Tools > Strata > Terrain Editor` to paint
 - `Tools > Strata > Materials` for tile sets
 
-Open `Examples/Strata Sandbox` to try it.
+Open `Examples/Strata Sandbox` to try it, every stair type is in there.
 
 ## Credits
 

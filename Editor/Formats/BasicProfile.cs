@@ -81,6 +81,7 @@ namespace Strata.Formats
             p.walls = Enumerable.Range(0, Math.Min(StrataTileSet.MaxSides, ts.sides.Count)).Where(k => ts.sides[k]).Select(k => (k + 1, ts.sides[k].Title)).ToArray();
             p.rims = Enumerable.Range(0, Math.Min(StrataTileSet.MaxEdges, ts.edges.Count)).Where(k => ts.edges[k]).Select(k => (k + 1, ts.edges[k].Title)).Append((0, "None")).ToArray();
             p.stairs = Enumerable.Range(0, Math.Min(StrataTileSet.MaxStairs, ts.stairs.Count)).Where(k => ts.stairs[k]).Select(k => (k, ts.stairs[k].Title, ts.stairs[k].Timber)).ToArray();
+            p.stairSides = Enumerable.Range(0, Math.Min(StrataTileSet.MaxStairs, ts.stairs.Count)).Select(k => ts.stairs[k] && ts.stairs[k].HasSides ? StrataStairType.SidesName(ts.stairs[k].sides) : null).ToArray();
             p.wallColors = new Color[16];
             for (int k = 0; k < 16; k++) p.wallColors[k] = Average(ts.wallAlbedo, Math.Min(k, ts.wallAlbedo ? ts.wallAlbedo.depth - 1 : 0));
             p.rimColors = new Color[16];

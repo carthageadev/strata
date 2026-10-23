@@ -116,7 +116,8 @@ namespace Strata
                     var types = p.stairs.Select(s => (s.index, s.name)).ToArray();
                     int type = p.stairs.Any(s => s.index == StrataSettings.StairType) ? StrataSettings.StairType : (p.stairs.Length > 0 ? p.stairs[0].index : 0);
                     body.Add(Chips("Type", types, () => type, v => StrataSettings.StairType = v, rebuild: true));
-                    if (!p.StairTimber(type)) body.Add(Toggle("Cheek walls", "Stone walls along the sides that stand above the ground", () => StrataSettings.CheekWalls, v => StrataSettings.CheekWalls = v));
+                    var sides = p.SidesLabel(type);
+                    if (sides != null) body.Add(Toggle(sides, "Along the sides of the stair", () => StrataSettings.CheekWalls, v => StrataSettings.CheekWalls = v));
                     var climb = Chips("Height", new[] { (0, "Auto"), (1, "Custom") }, () => StrataSettings.StairCustom ? 1 : 0, v => StrataSettings.StairCustom = v == 1,
                         tips: new[] { "Climbs to meet the ground beyond its head", "Climbs this far from its foot (it can end against a wall)" });
                     var rise = new FloatField { tooltip = "How high it climbs, in metres (steps of 0.25)" };
