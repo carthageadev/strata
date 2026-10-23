@@ -192,7 +192,7 @@ namespace Strata
                 {
                     bool logs = st.steps == StairSteps.Logs;
                     StoneBody(b, f, low, (float)StairLook.Scale(look.stone), st.body, logs ? 0 : TT);
-                    if (logs) Logs(b, f, look, st); else Flagstones(b, f, look, st);
+                    if (logs) Logs(b, f, look, st); else Flagstones(b, m, f, look, st);
                     Sides(b, m, f, low, look, st, def);
                     continue;
                 }
@@ -474,49 +474,33 @@ namespace Strata
             foreach (var s in Steps(f, fr))
             {
                 if (s.top - s.below < rise * 0.5) continue;
-                double r = (s.top + Texel - s.below) / 2;
-                Log(b, st.tread, fr, s.u0, s.below + r, r, -Texel, fr.wid + Texel, look.tread);
-                if (fr.wid < 0.75) continue;
-                foreach (double e in new[] { 0.25, fr.wid - 0.25 })
-                {
-                    var c = fr.P(s.u0 - r - Texel, 0, e);
-                    Block(b, st.tread, c.x, c.z, 2 * Texel, 2 * Texel, s.below - 0.1, s.top + 2 * Texel, look.tread);
-                }
+                double u0 = s.u0 - Texel, u1 = s.u0 + 2 * Texel, e0 = Texel, e1 = fr.wid - Texel;
+                var c = fr.P((u0 + u1) / 2, 0, (e0 + e1) / 2);
+                double y0 = s.below - Texel, y1 = s.top + Texel;
+                double lu = u1 - u0, le = e1 - e0;
+                Box(b, st.tread, fr.AlongX ? lu : le, y1 - y0, fr.AlongX ? le : lu, look.tread, true, new Vector3d(c.x, (y0 + y1) / 2, c.z), false);
             }
         }
 
-        static void Log(Builder b, int sub, Frame fr, double uc, double yc, double apothem, double e0, double e1, Vector2 tex)
-        {
-            const int N = 8;
-            double R = apothem / Math.Cos(Math.PI / N), side = 2 * R * Math.Sin(Math.PI / N);
-            double su = 16.0 / Math.Max(1, tex.x), sv = 16.0 / Math.Max(1, tex.y);
-            var ring = new (double u, double y)[N];
-            for (int i = 0; i < N; i++) { double a = Math.PI / N + i * 2 * Math.PI / N; ring[i] = (uc + R * Math.Cos(a), yc + R * Math.Sin(a)); }
-            for (int i = 0; i < N; i++)
-            {
-                var p = ring[i]; var q = ring[(i + 1) % N];
-                double mid = (i + 1) * 2 * Math.PI / N;
-                var n = fr.D(Math.Cos(mid), Math.Sin(mid), 0).Normalized;
-                FacetUV(b, sub, new[] { fr.P(p.u, p.y, e0), fr.P(q.u, q.y, e0), fr.P(q.u, q.y, e1), fr.P(p.u, p.y, e1) },
-                    new[] { new Vector2d(i * side * su, e0 * sv), new Vector2d((i + 1) * side * su, e0 * sv), new Vector2d((i + 1) * side * su, e1 * sv), new Vector2d(i * side * su, e1 * sv) }, n);
-            }
-            foreach (var (e, out_) in new[] { (e0, -1.0), (e1, 1.0) })
-            {
-                var poly = new Vector3d[N]; var uv = new Vector2d[N];
-                for (int i = 0; i < N; i++) { poly[i] = fr.P(ring[i].u, ring[i].y, e); uv[i] = new Vector2d(ring[i].u * su, ring[i].y * sv); }
-                FacetUV(b, sub, poly, uv, fr.D(0, 0, out_));
-            }
-        }
-
-        static void Flagstones(Builder b, Flight f, StairLook look, StairStyle st)
+        static void Flagstones(Builder b, StrataMap m, Flight f, StairLook look, StairStyle st)
         {
             if (st.tread < 0) return;
             var fr = FrameOf(f);
             var rng = new System.Random(Seed(f));
             bool landing = f.dir == StairDir.Landing;
             double gap = Texel, ku = 16.0 / Math.Max(1, look.tread.x);
-            foreach (var s in Steps(f, fr))
+            bool Open(double u, double e, double under)
             {
+                var p = fr.P(u, 0, e);
+                int ci = m.CellAt(p.x, p.z);
+                return ci < 0 || (m.kind[ci] != (byte)CellKind.Stair && m.Height(p.x, p.z) < under - 1e-3);
+            }
+            var steps = Steps(f, fr);
+            for (int si = 0; si < steps.Count; si++)
+            {
+                var s = steps[si];
+                double mid = (s.u0 + s.u1) / 2, under = s.top - 4 * Texel;
+                double edge0 = Open(mid, -0.5, under) ? -Texel : Texel, edge1 = Open(mid, fr.wid + 0.5, under) ? fr.wid + Texel : fr.wid - Texel;
                 var rows = new List<(double a, double z)>();
                 if (!landing) rows.Add((s.u0, s.u1));
                 else for (double u = s.u0; u < s.u1 - 1e-6;)
@@ -532,11 +516,12 @@ namespace Strata
                     {
                         double w = 0.5 + rng.Next(7) * 0.125;
                         if (fr.wid - (e + w) < 0.375) w = fr.wid - e;
-                        double e0 = e + (e > 1e-6 ? gap / 2 : 0), e1 = e + w - (e + w < fr.wid - 1e-6 ? gap / 2 : 0);
+                        double e0 = e > 1e-6 ? e + gap / 2 : edge0, e1 = e + w < fr.wid - 1e-6 ? e + w - gap / 2 : edge1;
                         double th = rng.Next(2) == 0 ? 2 * Texel : 3 * Texel;
                         double nose = landing ? 0 : (1 + rng.Next(3)) * Texel;
                         double back = landing && row < rows.Count - 1 ? gap : rng.Next(3) == 0 ? Texel : 0;
                         double top = s.top - (rng.Next(5) == 0 ? Texel : 0);
+                        if (si == steps.Count - 1 && row == rows.Count - 1 && back < 1e-9) { th = 2 * Texel; top = s.top; }
                         double u0 = ra - nose, u1 = rz - back;
                         var c = fr.P((u0 + u1) / 2, top - th / 2, (e0 + e1) / 2);
                         double lu = u1 - u0, le = e1 - e0;
@@ -613,7 +598,13 @@ namespace Strata
                     {
                         double u0 = start;
                         Vector3d P(double t) => e.runZ ? new Vector3d(e.at, 0, t) : new Vector3d(t, 0, e.at);
-                        runs.Add(new Run { a = P(u0), b = P(u), side = e.runZ ? new Vector3d(e.outward, 0, 0) : new Vector3d(0, 0, e.outward), ya = f.y0, yb = f.y0, foot = true, head = true });
+                        bool StairBeyond(double t)
+                        {
+                            double inX = e.runZ ? e.at - e.outward * 0.5 : t, inZ = e.runZ ? t : e.at - e.outward * 0.5;
+                            int ci = m.CellAt(inX, inZ);
+                            return ci >= 0 && m.kind[ci] == (byte)CellKind.Stair && m.stairOf[ci] >= 0 && m.flights[m.stairOf[ci]].dir != StairDir.Landing;
+                        }
+                        runs.Add(new Run { a = P(u0), b = P(u), side = e.runZ ? new Vector3d(e.outward, 0, 0) : new Vector3d(0, 0, e.outward), ya = f.y0, yb = f.y0, foot = !StairBeyond(u0 - 0.5), head = !StairBeyond(u + 0.5) });
                         start = double.NaN;
                     }
                 }
@@ -627,10 +618,11 @@ namespace Strata
             double L = Len(r);
             if (L < 0.5) return;
             double Y(double u) => r.ya + (r.yb - r.ya) * u / L;
-            bool foot = r.foot, head = r.head && (!foot || L >= 1.25);
-            if (foot) Newel(b, st, r, 0.25, low, Y(0.25) + 0.875, stone, rail);
-            if (head) Newel(b, st, r, L - 0.25, low, Y(L - 0.25) + 0.875, stone, rail);
-            double ua = foot ? 0.5 : 0, ub = head ? L - 0.5 : L;
+            bool foot = !flat || r.foot, head = (!flat || r.head) && L >= 1;
+            const double h = Wall / 2;
+            if (foot) Newel(b, st, r, h, low, Y(h) + 0.8125, stone, rail);
+            if (head) Newel(b, st, r, L - h, low, Y(L - h) + 0.8125, stone, rail);
+            double ua = foot ? Wall : 0, ub = head ? L - Wall : L;
             if (ub - ua < 0.25) return;
             Prism(b, st.cheek, r, ua, ub, 0, Wall, low, low, Y(ua) + 0.125, Y(ub) + 0.125, stone, cap0: !foot, cap1: !head);
             int n = Math.Max(0, (int)Math.Floor((ub - ua - 0.25) / 0.375));
@@ -638,18 +630,18 @@ namespace Strata
             for (int k = 0; k <= n; k++)
             {
                 double u = first + k * 0.375;
-                var c = RunPoint(r, u, Wall / 2, 0);
-                Block(b, st.cheek, c.x, c.z, 3 * Texel, 3 * Texel, Y(u) + 0.125 - Texel, Y(u) + 0.625 + Texel, stone);
+                var c = RunPoint(r, u, h, 0);
+                Block(b, st.cheek, c.x, c.z, 2 * Texel, 2 * Texel, Y(u) + 0.125 - Texel, Y(u) + 0.625 + Texel, stone);
             }
-            Prism(b, st.tread, r, ua, ub, -Texel, Wall + Texel, Y(ua) + 0.625, Y(ub) + 0.625, Y(ua) + 0.75, Y(ub) + 0.75, rail, cap0: !foot, cap1: !head, bottom: true);
+            Prism(b, st.tread, r, ua, ub, Texel, Wall - Texel, Y(ua) + 0.625, Y(ub) + 0.625, Y(ua) + 0.75, Y(ub) + 0.75, rail, cap0: !foot, cap1: !head, bottom: true);
         }
 
         static void Newel(Builder b, StairStyle st, Run r, double u, double low, double top, Vector2 stone, Vector2 cap)
         {
-            var c = RunPoint(r, u, 0.25, 0);
-            Block(b, st.cheek, c.x, c.z, 0.5, 0.5, low, top, stone);
-            BevelBox(b, st.tread, 0.625, 0.125, 0.625, Texel, cap, 0, 0, new Vector3d(c.x, top + 0.0625, c.z));
-            BevelBox(b, st.tread, 0.375, 0.125, 0.375, Texel, cap, 0, 0, new Vector3d(c.x, top + 0.1875, c.z));
+            var c = RunPoint(r, u, Wall / 2, 0);
+            Block(b, st.cheek, c.x, c.z, Wall, Wall, low, top, stone);
+            BevelBox(b, st.tread, Wall + 2 * Texel, 2 * Texel, Wall + 2 * Texel, Texel, cap, 0, 0, new Vector3d(c.x, top + Texel, c.z));
+            BevelBox(b, st.tread, Wall - 2 * Texel, 2 * Texel, Wall - 2 * Texel, Texel, cap, 0, 0, new Vector3d(c.x, top + 3 * Texel, c.z));
         }
 
         static void WingWall(Builder b, Run r, double low, Vector2 brick, Vector2 cap, StairStyle st, bool flat)
@@ -657,21 +649,20 @@ namespace Strata
             double L = Len(r);
             if (L < 0.5) return;
             double Y(double u) => r.ya + (r.yb - r.ya) * u / L + 0.5;
-            const double W = Wall, P = 0.5;
-            bool foot = r.foot, head = r.head && flat && L >= 2 * P + 0.25;
-            if (foot) Pier(b, st, r, P / 2, low, Math.Max(Y(0), Y(P)) + 0.375, brick, cap);
-            if (head) Pier(b, st, r, L - P / 2, low, Math.Max(Y(L), Y(L - P)) + 0.375, brick, cap);
-            double ua = foot ? P : 0, ub = head ? L - P : L;
+            bool foot = !flat || r.foot, head = flat ? r.head && L >= 2 * Wall + 0.25 : !r.head;
+            if (foot) Pier(b, st, r, Wall / 2, low, Math.Max(Y(0), Y(Wall)) + 0.25, brick, cap);
+            if (head) Pier(b, st, r, L - Wall / 2, low, Math.Max(Y(L), Y(L - Wall)) + 0.25, brick, cap);
+            double ua = foot ? Wall : 0, ub = head ? L - Wall : L;
             if (ub - ua < 0.125) return;
-            Prism(b, st.cheek, r, ua, ub, 0, W, low, low, Y(ua), Y(ub), brick, cap0: !foot, cap1: !head);
-            Prism(b, st.tread, r, ua, ub, -Texel, W + Texel, Y(ua), Y(ub), Y(ua) + 0.125, Y(ub) + 0.125, cap, cap0: !foot, cap1: !head, bottom: true);
+            Prism(b, st.cheek, r, ua, ub, 0, Wall, low, low, Y(ua), Y(ub), brick, cap0: !foot, cap1: !head);
+            Prism(b, st.tread, r, ua, ub, -Texel, Wall + Texel, Y(ua), Y(ub), Y(ua) + 0.125, Y(ub) + 0.125, cap, cap0: !foot, cap1: !head, bottom: true);
         }
 
         static void Pier(Builder b, StairStyle st, Run r, double u, double low, double top, Vector2 brick, Vector2 cap)
         {
-            var c = RunPoint(r, u, 0.25, 0);
-            Block(b, st.cheek, c.x, c.z, 0.5, 0.5, low, top, brick);
-            BevelBox(b, st.tread, 0.625, 0.125, 0.625, Texel, cap, 0, 0, new Vector3d(c.x, top + 0.0625, c.z));
+            var c = RunPoint(r, u, Wall / 2, 0);
+            Block(b, st.cheek, c.x, c.z, Wall, Wall, low, top, brick);
+            BevelBox(b, st.tread, Wall + 2 * Texel, 2 * Texel, Wall + 2 * Texel, Texel, cap, 0, 0, new Vector3d(c.x, top + Texel, c.z));
         }
 
         static void Prism(Builder b, int sub, Run r, double u0, double u1, double o0, double o1, double bot0, double bot1, double top0, double top1, Vector2 tex, bool cap0 = true, bool cap1 = true, bool bottom = false)
