@@ -1,0 +1,16 @@
+{
+  "name": "com.carthagea.strata",
+  "version": "0.5.0",
+  "displayName": "Strata",
+  "description": "A terrain painter for HD-2D maps. Paint levels, ground, walls, edges and stairs in the Scene view, then bake to a plain prefab.",
+  "unity": "6000.0",
+  "dependencies": {
+    "com.unity.render-pipelines.universal": "17.0.3"
+  },
+  "keywords": ["terrain", "hd-2d", "level design", "tiles", "pixel art"],
+  "author": {
+    "name": "Carthagea",
+    "url": "https://github.com/carthageadev"
+  },
+  "documentationUrl": "https://github.com/carthageadev/strata"
+}
