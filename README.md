@@ -52,7 +52,7 @@ the simplest way to start: make a terrain, drag ur textures on the strata window
 
 ![Walls](.github/readme/walls.webp)
 
-**Stairs** go between two heights, a flight or a landing. each type got its own look: stone with cheek walls, timber on posts for piers, dirt steps edged with timber, loose flat stones, brick between wing walls, or ur own step models
+**Stairs** go between two heights, a flight or a landing. each type got its own look: stone with cheek walls, loose flat stones, brick between wing walls, or ur own step models
 
 ![Stairs](.github/readme/stairs.webp)
 

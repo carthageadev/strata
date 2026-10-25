@@ -16,7 +16,6 @@ MonoBehaviour:
   materials:
   - {fileID: 11400000, guid: b5dfb0b6682a272478e4ea015bc82c96, type: 2}
   - {fileID: 11400000, guid: 4ae755d44e04c6f4b8d46c0365a2524d, type: 2}
-  - {fileID: 11400000, guid: 345157b30ee35894a9f43ca418e6231e, type: 2}
   - {fileID: 11400000, guid: cb36d5f620c8cc147b38bbf05e4023cc, type: 2}
   - {fileID: 11400000, guid: c08a1590426494f4387e50c61323eb4a, type: 2}
   - {fileID: 11400000, guid: f137c92fad80154409913797e36487ab, type: 2}
@@ -27,11 +26,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: da65a5f601b6b144498a9b72cf5512e1, type: 2}
   - {fileID: 11400000, guid: ca2ec42947da8b5438dbc184958e81f8, type: 2}
   - {fileID: 11400000, guid: 059799df69105d848b6d2cb2f40e3cd2, type: 2}
-  - {fileID: 11400000, guid: 2d7017718904de34daa8b1acc0baee9a, type: 2}
-  - {fileID: 11400000, guid: 5bcb6891b6024064c93077f1a92bb9e1, type: 2}
   stairs:
   - {fileID: 11400000, guid: c53521dfbde3836458ef9c0c81d4a1b4, type: 2}
-  - {fileID: 11400000, guid: 7b7b26a588a4b51439612c489287b553, type: 2}
-  - {fileID: 11400000, guid: 984b47d3bc2aac44db7811a07ba278ed, type: 2}
   - {fileID: 11400000, guid: 18022002dc332df46be8243666263356, type: 2}
   - {fileID: 11400000, guid: e82880fcc31a0aa4fa3a85683fc484c3, type: 2}
