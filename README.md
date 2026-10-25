@@ -18,7 +18,7 @@ Or in the Package Manager, `+ > Install package from git URL` and paste:
 https://github.com/carthageadev/strata.git
 ```
 
-Strata checks for a new version once a session and asks before updating. Turn it off in `Preferences > Strata`.
+Strata checks for a new version once a session and asks before updating. Turn it off in `Preferences > Strata > Updates`.
 
 ## Use
 
