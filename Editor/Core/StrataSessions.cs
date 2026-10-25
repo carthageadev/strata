@@ -50,7 +50,6 @@ namespace Strata
                 .OrderBy(f => f).ToArray();
         }
 
-        //! ask unity for the prefab instances, walking every transform took 20ms on the v3 village
         public static string[] TerrainsInScene(string[] found = null)
         {
             var list = new List<string>();

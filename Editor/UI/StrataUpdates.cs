@@ -8,8 +8,6 @@ using UnityEngine.Networking;
 
 namespace Strata
 {
-    // once per session: is there a newer release on github? asks first, never updates on its own
-    //! nothing else in strata uses this file, delete it and strata just stops checking
     [InitializeOnLoad]
     static class StrataUpdates
     {
@@ -42,7 +40,6 @@ namespace Strata
             EditorApplication.delayCall += () => Check(false);
         }
 
-        // the Strata folder, in Assets or in Packages
         public static string Root => Path.GetDirectoryName(Path.GetDirectoryName(CompilationPipeline.GetAssemblyDefinitionFilePathFromAssemblyName("Strata.Editor"))).Replace('\\', '/');
 
         public static string Version
@@ -109,7 +106,6 @@ namespace Strata
             };
         }
 
-        // 0.10.0 is newer than 0.9.2, "0.6.0-beta" counts as 0.6.0
         static bool Newer(string a, string b)
         {
             int[] Parse(string v)
