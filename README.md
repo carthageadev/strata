@@ -11,6 +11,8 @@ Paint levels, ground, walls, edges and stairs in the Scene view, then bake to a 
 The painting tools run entirely in the Unity Editor.
 Baked terrains use regular Unity meshes and materials.
 
+![Strata](.github/paint.gif)
+
 ## Setup
 
 Unity 6 with URP. Copy this folder into `Assets/Strata` or clone this repo straight in your `Assets` folder
