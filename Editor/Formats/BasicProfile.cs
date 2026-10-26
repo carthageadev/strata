@@ -74,7 +74,7 @@ namespace Strata.Formats
             var p = new StrataPalette();
             if (!ts) return p;
             p.library = ts;
-            p.stamp = ts.buildStamp * 397 ^ ts.GetInstanceID();
+            p.stamp = ts.buildStamp * 397 ^ StrataIds.Hash(ts);
             int n = Math.Min(StrataTileSet.MaxTops, ts.tops.Count);
             p.layers = Enumerable.Range(0, n).Select(k => ts.tops[k] ? ts.tops[k].Title : null).ToArray();
             p.thumbs = StrataPalette.Thumbs(ts.groundAlbedo, n);
