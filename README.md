@@ -2,7 +2,7 @@
 
 ![Strata](.github/banner.gif)
 
-[![Download .unitypackage](https://img.shields.io/badge/Download-.unitypackage-2ea44f?style=for-the-badge)](https://github.com/carthageadev/strata/releases/latest/download/Strata.unitypackage)
+[![Download .unitypackage](https://img.shields.io/badge/Download-.unitypackage-2ea44f?style=for-the-badge)](https://github.com/carthageadev/strata/releases/latest/download/strata-basic.unitypackage)
 
 A terrain painter for high fidelity 2.5D pixel art maps in Unity.
 
