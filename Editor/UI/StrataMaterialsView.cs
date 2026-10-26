@@ -148,8 +148,8 @@ namespace Strata
             if (!selected && !ReferenceEquals(selected, null)) Select(null);
             Picker();
             var active = StrataSessions.Active;
-            if (active != null && active.map.profile == VillageV2Profile.Id)
-                EditorGUILayout.HelpBox("Village V2's terrain draws with its own materials; tile sets are for Strata terrains.", MessageType.None);
+            if (StrataProfiles.Find(active) is IStrataFormat format)
+                EditorGUILayout.HelpBox($"{format.Name}'s terrain draws with its own materials; tile sets are for Strata terrains.", MessageType.None);
             if (!library && !all) { GUILayout.Label("Pick a tile set.", EditorStyles.miniLabel); return; }
             locked = !all && Locked(library);
             if (locked)
