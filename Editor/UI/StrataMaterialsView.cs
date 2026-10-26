@@ -833,13 +833,23 @@ namespace Strata
         {
             string file = EditorUtility.SaveFilePanel("Share Strata materials", "", what.name + ".unitypackage", "unitypackage");
             if (string.IsNullOrEmpty(file)) return;
-            AssetDatabase.ExportPackage(AssetDatabase.GetAssetPath(what), file, ExportPackageOptions.IncludeDependencies | ExportPackageOptions.Interactive);
+            var flags = ExportPackageOptions.IncludeDependencies | ExportPackageOptions.Interactive;
+#if UNITY_6000_7_OR_NEWER
+            UnityEditor.AssetPackage.Package.Export(new UnityEditor.AssetPackage.ExportPackageParameters(AssetDatabase.GetAssetPath(what), file, flags: flags));
+#else
+            AssetDatabase.ExportPackage(AssetDatabase.GetAssetPath(what), file, flags);
+#endif
         }
 
         static void Import()
         {
             string file = EditorUtility.OpenFilePanel("Import Strata materials", "", "unitypackage");
-            if (!string.IsNullOrEmpty(file)) AssetDatabase.ImportPackage(file, true);
+            if (string.IsNullOrEmpty(file)) return;
+#if UNITY_6000_7_OR_NEWER
+            UnityEditor.AssetPackage.Package.Import(file, true);
+#else
+            AssetDatabase.ImportPackage(file, true);
+#endif
         }
     }
 }
