@@ -24,7 +24,7 @@ namespace Strata
         {
             var w = CreateInstance<StrataNewTerrain>();
             w.titleContent = new GUIContent("New Strata Terrain", StrataIcons.Tool);
-            w.tiles = BasicProfile.DefaultTiles();
+            w.tiles = BasicProfile.DefaultSet();
             w.terrainName = w.FreeName("Terrain");
             var size = new Vector2(340, 186);
             w.minSize = w.maxSize = size;

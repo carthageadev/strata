@@ -15,7 +15,8 @@ namespace Strata
     {
         public enum Family { Soil = 0, Turf = 1, Paving = 2, Rock = 3 }
         public enum Role { Top, Side, Edge }
-        public const int MaxTops = 12, MaxSides = 15, MaxEdges = 15, MaxStairs = 8;
+        // TODO lift the 12 tops / 15 sides / 15 edges some day, save which grounds r on each spot instead of 1 channel per ground
+        public const int MaxTops = 12, MaxSides = 15, MaxEdges = 15, MaxStairs = 256;
 
         public List<StrataMaterial> tops = new List<StrataMaterial>();
         public List<StrataMaterial> sides = new List<StrataMaterial>();
@@ -62,6 +63,13 @@ namespace Strata
         public bool Built => Current && groundAlbedo && groundNormal && groundOrm && wallAlbedo && wallNormal && wallOrm && edgeAlbedo && edgeTable;
 
         public List<StrataMaterial> List(Role r) => r == Role.Top ? tops : r == Role.Side ? sides : edges;
+        public void CopyItems(StrataTileSet from)
+        {
+            tops = new List<StrataMaterial>(from.tops); sides = new List<StrataMaterial>(from.sides);
+            edges = new List<StrataMaterial>(from.edges); stairs = new List<StrataStairType>(from.stairs);
+            slopeLayer = from.slopeLayer; macro = from.macro; noise = from.noise; pixelGrid = from.pixelGrid;
+        }
+
         public static int Max(Role r) => r == Role.Top ? MaxTops : r == Role.Side ? MaxSides : MaxEdges;
         public string Folder => Path.GetDirectoryName(AssetDatabase.GetAssetPath(this)).Replace('\\', '/');
 
