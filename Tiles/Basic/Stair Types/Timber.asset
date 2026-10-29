@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d11ac7906465f5a49acf1a8e18d1791f, type: 3}
+  m_Name: Timber
+  m_EditorClassIdentifier: Strata.Editor::Strata.StrataStairType
+  displayName: 
+  build: 1
+  body: {fileID: 0}
+  tread: {fileID: 0}
+  cheek: {fileID: 0}
+  planks: {fileID: 11400000, guid: 2d7017718904de34daa8b1acc0baee9a, type: 2}
+  posts: {fileID: 11400000, guid: 5bcb6891b6024064c93077f1a92bb9e1, type: 2}
+  step: {fileID: 0}
+  firstStep: {fileID: 0}
+  lastStep: {fileID: 0}
+  stack: 1
+  turn: 0
+  built:
+  - {fileID: 2100000, guid: 7bbfba8751130d44fa24965c0efdbdb9, type: 2}
+  - {fileID: 2100000, guid: fcd9a44e67963f644a398a80c11f52a0, type: 2}

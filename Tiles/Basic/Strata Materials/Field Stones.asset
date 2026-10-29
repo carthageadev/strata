@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5cf77ad00f3bddf47995f4470176cdfb, type: 3}
+  m_Name: Field Stones
+  m_EditorClassIdentifier: Strata.Editor::Strata.StrataMaterial
+  displayName: 
+  meantAs: 4
+  albedo: {fileID: 0}
+  normal: {fileID: 0}
+  metallic: {fileID: 0}
+  occlusion: {fileID: 0}
+  packed: {fileID: 0}
+  tint: {r: 1, g: 1, b: 1, a: 1}
+  pixelSize: 0
+  smoothness: 0.1
+  metalness: 0
+  priority: 5
+  family: 1
+  wobble: 0.4
+  ragged: 0.12
+  edgePattern: 3
+  edgeTexture: 0
+  edgeDark: {r: 0.4, g: 0.3, b: 0.16, a: 1}
+  edgeLight: {r: 0.6, g: 0.48, b: 0.28, a: 1}
