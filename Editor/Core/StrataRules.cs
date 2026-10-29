@@ -109,6 +109,8 @@ namespace Strata
         }
 
         static readonly int[,] Diagonals = { { 1, -1, 1, 0 }, { 1, 1, 2, 3 }, { -1, 1, 3, 2 }, { -1, -1, 0, 1 } };
+        //? narrow code terrains keep the old pairing so they still match the web export, fix those too some day?
+        static readonly int[,] Touching = { { 1, -1, 1, 3 }, { 1, 1, 2, 0 }, { -1, 1, 3, 1 }, { -1, -1, 0, 2 } };
 
         public static UnityEngine.Color32 Mask(StrataMap m, int c, int r)
         {
@@ -126,10 +128,11 @@ namespace Strata
             if (SouthWall(m, c, r - 1, out var n)) Take(n);
             if (r >= 1 && r < m.h - 1 && c >= 1 && c < m.w - 1)
             {
+                var d = wide ? Touching : Diagonals;
                 for (int k = 0; k < 4; k++)
                 {
-                    int j = (r + Diagonals[k, 1]) * m.w + (c + Diagonals[k, 0]);
-                    double av = C(m, i * 4 + Diagonals[k, 2]), bv = C(m, j * 4 + Diagonals[k, 3]);
+                    int j = (r + d[k, 1]) * m.w + (c + d[k, 0]);
+                    double av = C(m, i * 4 + d[k, 2]), bv = C(m, j * 4 + d[k, 3]);
                     if (av - bv > Eps) drop |= 1 << (4 + k);
                     else if (bv - av > Eps) rise |= 1 << (4 + k);
                 }
