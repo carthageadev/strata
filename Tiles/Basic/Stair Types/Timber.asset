@@ -56,6 +56,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Strata.Editor::Strata.StrataStairType
   displayName: 
   build: 1
+  steps: 0
+  sides: 0
   body: {fileID: 0}
   tread: {fileID: 0}
   cheek: {fileID: 0}

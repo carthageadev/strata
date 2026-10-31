@@ -426,7 +426,7 @@ namespace Strata
             {
                 int pieces = dir == StairDir.Landing ? 1 : f.steps;
                 f.ground = new float[pieces];
-                for (int k = 0; k < pieces; k++) f.ground[k] = Math.Min(y0, y1);
+                for (int k = 0; k < pieces; k++) f.ground[k] = GroundUnder(m, cells, dir, k, pieces, Math.Min(y0, y1));
             }
             m.flights.Add(f);
             short fi = (short)(m.flights.Count - 1);
@@ -445,6 +445,25 @@ namespace Strata
         }
 
         //? when we remove a flight the stairOf of the flights after it get shifted right? i think yes but check
+        static float GroundUnder(StrataMap m, RectInt cells, StairDir dir, int k, int pieces, float foot)
+        {
+            var (dx, dz) = Flight.Step(dir);
+            int len = dx != 0 ? cells.width : cells.height, wid = dx != 0 ? cells.height : cells.width;
+            int at = Math.Min(len - 1, (int)((k + 0.5) * len / pieces));
+            float g = foot;
+            for (int a = 0; a < len; a++)
+            {
+                if (dir != StairDir.Landing && a != at) continue;
+                for (int e = 0; e < wid; e++)
+                {
+                    int c = dx > 0 ? cells.xMin + a : dx < 0 ? cells.xMax - 1 - a : cells.xMin + e;
+                    int r = dz > 0 ? cells.yMin + a : dz < 0 ? cells.yMax - 1 - a : dx != 0 ? cells.yMin + e : cells.yMin + a;
+                    if (m.InGrid(c, r) && m.kind[r * m.w + c] != (byte)CellKind.Stair) g = Math.Min(g, m.Bottom(r * m.w + c));
+                }
+            }
+            return g;
+        }
+
         public static bool RemoveFlight(StrataTerrain t, int flight)
         {
             var m = t.map;

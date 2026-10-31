@@ -395,7 +395,7 @@ namespace Strata
                 var mat = st.built[k];
                 if (!mat)
                 {
-                    mat = new Material(shader) { name = $"{st.Title} {StrataStairType.PartName(st.Timber, k)}", enableInstancing = true };
+                    mat = new Material(shader) { name = $"{st.Title} {st.PartName(k)}", enableInstancing = true };
                     if (!string.IsNullOrEmpty(path)) AssetDatabase.AddObjectToAsset(mat, st);
                     st.built[k] = mat;
                 }
@@ -448,7 +448,7 @@ namespace Strata
                     slot += mats.Count;
                 }
                 else if (st.Timber) { s.plank = slot; s.post = slot + 1; slot += st.Parts; }
-                else { s.body = slot; s.tread = slot + 1; s.cheek = slot + 2; slot += st.Parts; }
+                else { s.body = slot; s.tread = slot + 1; s.cheek = slot + 2; s.steps = st.steps; s.sides = st.sides; slot += st.Parts; }
                 o[k] = s;
                 if (!any) { first = s; any = true; }
             }
@@ -485,7 +485,7 @@ namespace Strata
             var look = StairLook.Default;
             Vector2 Size(StrataMaterial m, Vector2 fallback) => m && m.albedo ? new Vector2(Math.Min(m.albedo.width, StrataTileSet.Size), Math.Min(m.albedo.height, StrataTileSet.Size)) : fallback;
             if (st.Timber) { look.deck = Size(st.planks, look.deck); look.timber = Size(st.posts, look.timber); }
-            else { look.stone = Size(st.body, look.stone); look.tread = Size(st.tread, look.tread); }
+            else { look.stone = Size(st.body, look.stone); look.tread = Size(st.tread, look.tread); look.cheek = Size(st.cheek, look.stone); }
             return look;
         }
 

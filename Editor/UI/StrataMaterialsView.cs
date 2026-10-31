@@ -765,13 +765,20 @@ namespace Strata
             else
             {
                 bool timber = build == StrataStairType.Build.Timber;
-                var parts = timber ? new[] { "planks", "posts" } : new[] { "body", "tread", "cheek" };
+                if (!timber)
+                {
+                    EditorGUILayout.PropertyField(so.FindProperty("steps"));
+                    EditorGUILayout.PropertyField(so.FindProperty("sides"));
+                }
+                var steps = (StairSteps)so.FindProperty("steps").enumValueIndex;
+                var sides = (StairSides)so.FindProperty("sides").enumValueIndex;
+                var parts = timber ? new[] { "planks", "posts" } : sides == StairSides.None ? new[] { "body", "tread" } : new[] { "body", "tread", "cheek" };
                 for (int k = 0; k < parts.Length; k++)
                 {
                     using (new EditorGUILayout.HorizontalScope())
                     {
                         var p = so.FindProperty(parts[k]);
-                        EditorGUILayout.PropertyField(p, new GUIContent(StrataStairType.PartName(timber, k), p.tooltip));
+                        EditorGUILayout.PropertyField(p, new GUIContent(StrataStairType.PartName(build, steps, sides, k), p.tooltip));
                         var mat = p.objectReferenceValue as StrataMaterial;
                         var r = GUILayoutUtility.GetRect(18, 18, GUILayout.Width(18));
                         if (mat && mat.albedo && Event.current.type == EventType.Repaint) GUI.DrawTexture(r, mat.albedo, ScaleMode.ScaleAndCrop);
