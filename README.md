@@ -89,3 +89,7 @@ Bake saves it all as a plain prefab, ur map dont need strata to run. undo works 
 - `Tools > Strata > Materials` for tile sets
 
 Open `Examples/Strata Sandbox` to try it.
+
+## Credits
+
+the rock is from the Dungeon Crawl Stone Soup tiles (CC0), thank u!
