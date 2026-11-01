@@ -1,6 +1,6 @@
 {
   "name": "com.carthagea.strata",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "displayName": "Strata",
   "description": "A terrain painter for HD-2D maps. Paint levels, ground, walls, edges and stairs in the Scene view, then bake to a plain prefab.",
   "unity": "6000.0",
