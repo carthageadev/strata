@@ -20,8 +20,9 @@ Or in the Package Manager, `+ > Install package from git URL` and paste:
 ```
 https://github.com/carthageadev/strata.git
 ```
+(I prefer the Assets folder version but you use what fits your workflow)
 
-Strata checks for a new version once a session and asks before updating. Turn it off in `Preferences > Strata > Updates`.
+Strata checks for a new version automatically. Turn it off in `Preferences > Strata > Updates`.
 
 ## Start here
 
@@ -41,9 +42,9 @@ the simplest way to start: make a terrain, drag ur textures on the strata window
 
 ## Brushes
 
-**Level** raises or lowers the ground. walls build them self where two levels meet, no floating floors
-
+**Level** raises or lowers the ground. walls build themselves where two levels meet
 ![Level](.github/readme/levels.webp)
+(you can toggle height, to sides and edges on or off and the brush can either do one role or multi-brush to help you rase and paint at the same time)
 
 **Walls**: the Level brush with only Sides on restyles the walls and the edge on top, without touching the height
 
@@ -59,18 +60,18 @@ the simplest way to start: make a terrain, drag ur textures on the strata window
 
 ![Shapes](.github/readme/shapes.webp)
 
-**Revert** paints a spot back to how the terrain was first made
+**Revert** paints a spot back to how the terrain was first made, ctrl-z works 
 
 ## Materials
 
-the Materials tab is where ur stuff lives. tops are the ground, sides are the walls, edges are the trim on top of the walls, and stairs. new ones blink so u see where they went
+the Materials tab is where ur stuff lives. tops are the ground, sides are the walls, edges are the trim on top of the walls, and stairs
 
 ![Materials](.github/readme/materials.webp)
 
 - the name decides the kind: wall, brick, cliff go to sides, edge, trim, coping go to edges, step models go to stairs, the rest are tops. drop on a section to pick the kind urself
 - maps get matched by name (albedo, normal, roughness, ao...), normals get set up and small textures stay pixel sharp
-- a stair type picks its steps (slabs, flagstones or timber edged dirt) and its sides (cheek walls, balustrade, wing walls or none)
-- if u didnt pick a set it all goes in the Default Set
+- a stair type needs its steps mesh, and the texture of course
+- if u didnt pick a set it all goes in the Default Set, you can create sets to organize later
 - share a material, a tile set or a pack as a .unitypackage
 
 ## Limits
@@ -95,4 +96,4 @@ Open `Examples/Strata Sandbox` to try it, every stair type is in there.
 
 ## Credits
 
-the rock is from the Dungeon Crawl Stone Soup tiles (CC0), thank u!
+the rock is from the Dungeon Crawl Stone Soup tiles (CC0), thanks!
