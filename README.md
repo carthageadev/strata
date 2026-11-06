@@ -4,7 +4,7 @@
 
 [![Download .unitypackage](https://img.shields.io/badge/Download-.unitypackage-2ea44f?style=for-the-badge)](https://github.com/carthageadev/strata/releases/latest/download/Strata.unitypackage)
 
-A terrain painter for HD-2D maps in Unity.
+A terrain painter for high fidelity 2.5D pixel art maps in Unity.
 
 Paint levels, ground, walls, edges and stairs in the Scene view, then bake to a plain prefab. The tool does not need terrain dependencies to run.
 
