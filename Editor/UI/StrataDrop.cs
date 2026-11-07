@@ -176,10 +176,10 @@ namespace Strata
         static List<Object> Resolve(Object[] objs, string[] paths, List<string> files, List<string> notes)
         {
             var list = new List<Object>();
-            var seen = new HashSet<int>();
+            var seen = new HashSet<Object>();
             void Add(Object o)
             {
-                if (!o || list.Count >= MaxItems || !seen.Add(o.GetInstanceID())) return;
+                if (!o || list.Count >= MaxItems || !seen.Add(o)) return;
                 string path = AssetDatabase.GetAssetPath(o);
                 if (o is DefaultAsset && AssetDatabase.IsValidFolder(path))
                 {
@@ -254,7 +254,7 @@ namespace Strata
             foreach (var m in objects.OfType<Material>())
             {
                 string pretty = Pretty(Parse(m.name).stem);
-                var g = new Group { key = "mat " + m.GetInstanceID(), name = pretty.Length > 0 ? pretty : m.name, from = m };
+                var g = new Group { key = "mat " + StrataIds.Key(m), name = pretty.Length > 0 ? pretty : m.name, from = m };
                 void Put(Map k, Texture2D t) { if (t) g.maps[k] = t; }
                 Put(Map.Albedo, Tex(m, "_BaseMap", "_MainTex", "_BaseColorMap", "_BaseColorTexture"));
                 Put(Map.Normal, Tex(m, "_BumpMap", "_NormalMap"));
@@ -289,7 +289,7 @@ namespace Strata
                 plan.notes.Add($"{g.name}: nothing Strata uses ({string.Join(", ", g.unused.Select(x => x.name))})");
                 plan.groups.Remove(g);
             }
-            foreach (var sm in objects.OfType<StrataMaterial>()) plan.groups.Add(new Group { key = "strata " + sm.GetInstanceID(), name = sm.Title, strata = sm });
+            foreach (var sm in objects.OfType<StrataMaterial>()) plan.groups.Add(new Group { key = "strata " + StrataIds.Key(sm), name = sm.Title, strata = sm });
 
             var models = new Dictionary<string, Models>();
             foreach (var go in objects.OfType<GameObject>())
@@ -300,7 +300,7 @@ namespace Strata
                 string key = string.Join(" ", stemWords);
                 if (!models.TryGetValue(key, out var s) || (!first && !last && s.step))
                 {
-                    if (s != null) key += " " + go.GetInstanceID();
+                    if (s != null) key += " " + StrataIds.Key(go);
                     var bare = stemWords.Where(w => !StairWords.Contains(w)).ToList();
                     s = new Models { key = key, name = (bare.Count > 0 ? Pretty(string.Join(" ", bare)) : Pretty(string.Join(" ", stemWords))) + " Stairs" };
                     if (s.name == " Stairs") s.name = go.name + " Stairs";
@@ -309,7 +309,7 @@ namespace Strata
                 }
                 if (first) s.first = go; else if (last) s.last = go; else s.step = go;
             }
-            foreach (var st in objects.OfType<StrataStairType>()) plan.stairs.Add(new Models { key = "strata " + st.GetInstanceID(), name = st.Title, existing = st });
+            foreach (var st in objects.OfType<StrataStairType>()) plan.stairs.Add(new Models { key = "strata " + StrataIds.Key(st), name = st.Title, existing = st });
             return plan;
         }
 
@@ -320,7 +320,7 @@ namespace Strata
         {
             var objs = DragAndDrop.objectReferences ?? new Object[0];
             var paths = DragAndDrop.paths ?? new string[0];
-            string key = string.Join(",", objs.Select(o => o ? o.GetInstanceID() : 0)) + "|" + string.Join(",", paths);
+            string key = string.Join(",", objs.Select(o => o ? StrataIds.Key(o) : "0")) + "|" + string.Join(",", paths);
             if (key == peekKey && peek != null) return peek;
             var notes = new List<string>();
             var files = new List<string>();

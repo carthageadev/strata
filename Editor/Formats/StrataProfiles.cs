@@ -17,7 +17,7 @@ namespace Strata.Formats
 
         public static StrataTileSet Library(StrataTerrain t) => t != null && t.map.profile == BasicProfile.Id ? BasicProfile.TilesOf(t.map) : null;
 
-        public static int Stamp(StrataTerrain t) => Library(t) is StrataTileSet ts && ts ? ts.buildStamp * 397 ^ ts.GetInstanceID() : 0;
+        public static int Stamp(StrataTerrain t) => Library(t) is StrataTileSet ts && ts ? ts.buildStamp * 397 ^ StrataIds.Hash(ts) : 0;
 
         public static string DisplayName(StrataTerrain t) => Find(t)?.Name ?? "Strata tiles";
 
