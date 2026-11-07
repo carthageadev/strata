@@ -1,0 +1,10 @@
+Third-Party Notices
+
+Strata uses the following third-party content.
+
+Dungeon Crawl Stone Soup tiles
+- Used in: Tiles/Basic/Textures/Rock_Albedo.png, Rock_Normal.png and Rock_ORM.png (the Rock ground material), made from the "lab-rock" tile.
+- Source: https://github.com/crawl/tiles
+- License: CC0 1.0 Universal (public domain dedication), https://creativecommons.org/publicdomain/zero/1.0/
+
+All other code, shaders, textures and examples in this package were made for Strata.
