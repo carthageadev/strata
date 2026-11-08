@@ -1,6 +1,6 @@
 {
   "name": "com.carthagea.strata",
-  "version": "0.6.5",
+  "version": "0.6.6",
   "displayName": "Strata",
   "description": "A terrain painter for high fidelity 2.5D pixel art maps. Paint levels, ground, walls, edges and stairs in the Scene view, then bake to a plain prefab.",
   "unity": "6000.0",
