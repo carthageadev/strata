@@ -101,8 +101,12 @@ namespace Strata
             {
                 bool ok = get.result == UnityWebRequest.Result.Success;
                 get.Dispose();
-                if (ok) AssetDatabase.ImportPackage(file, true);
-                else Application.OpenURL(r.html_url);
+                if (!ok) { Application.OpenURL(r.html_url); return; }
+#if UNITY_6000_7_OR_NEWER
+                UnityEditor.AssetPackage.Package.Import(file, true);
+#else
+                AssetDatabase.ImportPackage(file, true);
+#endif
             };
         }
 
