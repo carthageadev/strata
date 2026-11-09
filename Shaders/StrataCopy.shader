@@ -4,6 +4,7 @@ Shader "Hidden/Strata/Copy"
 
     SubShader
     {
+        Tags { "RenderPipeline" = "UniversalPipeline" }
         ZTest Always Cull Off ZWrite Off
 
         Pass

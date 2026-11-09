@@ -11,6 +11,7 @@ namespace Strata
         const uint Magic = 0x54525453;
         //! Change the file version if binary field order changes.
         public const int Version = 1;
+        static readonly byte[] Header = { (byte)'S', (byte)'T', (byte)'R', (byte)'T' };
 
         public static void Save(StrataMap m, string path)
         {
@@ -19,9 +20,12 @@ namespace Strata
             if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
             string tmp = path + ".tmp";
             using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write))
-            using (var gz = new GZipStream(fs, System.IO.Compression.CompressionLevel.Fastest))
-            using (var bw = new BinaryWriter(gz, Encoding.UTF8))
-                Write(m, bw);
+            {
+                fs.Write(Header, 0, Header.Length);
+                using (var gz = new GZipStream(fs, System.IO.Compression.CompressionLevel.Fastest))
+                using (var bw = new BinaryWriter(gz, Encoding.UTF8))
+                    Write(m, bw);
+            }
             //! Validate temp data before replacing terrain; keep the .strata~ backup.
             Load(tmp);
             if (File.Exists(path))
@@ -36,6 +40,17 @@ namespace Strata
         public static StrataMap Load(string path)
         {
             using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read))
+            {
+                var head = new byte[Header.Length];
+                int got = fs.Read(head, 0, head.Length);
+                bool headed = got == head.Length && head[0] == Header[0] && head[1] == Header[1] && head[2] == Header[2] && head[3] == Header[3];
+                if (!headed) fs.Seek(0, SeekOrigin.Begin);
+                return Load(fs);
+            }
+        }
+
+        static StrataMap Load(Stream fs)
+        {
             using (var gz = new GZipStream(fs, CompressionMode.Decompress))
             using (var br = new BinaryReader(gz, Encoding.UTF8))
             {

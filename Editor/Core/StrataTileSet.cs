@@ -48,6 +48,7 @@ namespace Strata
         }
 
         [SerializeField, HideInInspector] int format;
+        [SerializeField, HideInInspector] int builtSpace = -1;
         [HideInInspector] public List<GroundLayer> ground = new List<GroundLayer>();
         [HideInInspector] public List<WallLayer> walls = new List<WallLayer>();
         [HideInInspector] public Color turf = new Color(0.34f, 0.47f, 0.17f), turfLip = new Color(0.46f, 0.6f, 0.26f);
@@ -60,7 +61,8 @@ namespace Strata
         [HideInInspector] public int buildStamp;
 
         public bool Current => format >= 2;
-        public bool Built => Current && groundAlbedo && groundNormal && groundOrm && wallAlbedo && wallNormal && wallOrm && edgeAlbedo && edgeTable;
+        public bool Built => Current && groundAlbedo && groundNormal && groundOrm && wallAlbedo && wallNormal && wallOrm && edgeAlbedo && edgeTable
+            && (builtSpace < 0 || builtSpace == (int)QualitySettings.activeColorSpace);
 
         public List<StrataMaterial> List(Role r) => r == Role.Top ? tops : r == Role.Side ? sides : edges;
         public void CopyItems(StrataTileSet from)
@@ -174,6 +176,7 @@ namespace Strata
             edgeTable = Table(edgeTable, w, g);
             foreach (var st in stairs) if (st) BuildStair(st);
             buildStamp++;
+            builtSpace = (int)QualitySettings.activeColorSpace;
             EditorUtility.SetDirty(this);
             AssetDatabase.SaveAssets();
             sb.Insert(0, $"{name}: {g.Count(x => x)} tops, {sides.Count(x => x)} sides, {edges.Count(x => x)} edges, {stairs.Count(x => x)} stair types.\n");
