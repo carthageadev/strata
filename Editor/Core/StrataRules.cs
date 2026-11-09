@@ -112,15 +112,16 @@ namespace Strata
         //? narrow code terrains keep the old pairing so they still match the web export, fix those too some day?
         static readonly int[,] Touching = { { 1, -1, 1, 3 }, { 1, 1, 2, 0 }, { -1, 1, 3, 1 }, { -1, -1, 0, 2 } };
 
-        public static UnityEngine.Color32 Mask(StrataMap m, int c, int r)
+        public static UnityEngine.Color32 Mask(StrataMap m, int c, int r, IStrataWallShape shape = null)
         {
             int i = r * m.w + c;
             int drop = 0, rise = 0, rims = 0;
             bool wide = m.WideCodes;
             void Take(in Wall wl)
             {
-                if (wl.hi == i) { drop |= 1 << wl.side; rims |= wide ? Math.Min(wl.rim, 15) << (wl.side * 4) : wl.rim << (wl.side * 2); }
-                if (wl.lo == i) rise |= 1 << ((wl.side + 2) % 4);
+                bool rocky = shape != null && shape.Claims(m, wl);
+                if (wl.hi == i) { drop |= 1 << wl.side; if (!rocky) rims |= wide ? Math.Min(wl.rim, 15) << (wl.side * 4) : wl.rim << (wl.side * 2); }
+                if (wl.lo == i && !rocky) rise |= 1 << ((wl.side + 2) % 4);
             }
             if (EastWall(m, c, r, out var a)) Take(a);
             if (EastWall(m, c - 1, r, out var b)) Take(b);
@@ -134,7 +135,7 @@ namespace Strata
                     int j = (r + d[k, 1]) * m.w + (c + d[k, 0]);
                     double av = C(m, i * 4 + d[k, 2]), bv = C(m, j * 4 + d[k, 3]);
                     if (av - bv > Eps) drop |= 1 << (4 + k);
-                    else if (bv - av > Eps) rise |= 1 << (4 + k);
+                    else if (bv - av > Eps && !(shape != null && shape.ClaimsStyle(m.wall[j]))) rise |= 1 << (4 + k);
                 }
             }
             if (wide) return new UnityEngine.Color32((byte)drop, (byte)rise, (byte)(rims & 255), (byte)(rims >> 8));

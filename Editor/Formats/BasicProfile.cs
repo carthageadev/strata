@@ -111,32 +111,65 @@ namespace Strata.Formats
             var ts = Ready(TilesOf(t.map));
             if (!ts) return;
             var g = t.groundMaterial; var w = t.wallsMaterial;
+            bool healed = Heal(g, GroundShader) | Heal(w, WallsShader);
             bool old = g && g.GetFloat("_StrataCodes") < 2;
-            if (old || (g && g.GetTexture("_EdgeTable") != ts.edgeTable) || (w && w.GetTexture("_EdgeTable") != ts.edgeTable))
+            if (old || healed || (g && g.GetTexture("_EdgeTable") != ts.edgeTable) || (w && w.GetTexture("_EdgeTable") != ts.edgeTable))
             {
                 ts.Apply(g, w);
                 if (g) AssetDatabase.SaveAssetIfDirty(g);
                 if (w) AssetDatabase.SaveAssetIfDirty(w);
             }
             t.UseStairs(ts.StairStyles(), ts.StairMaterials(), rebuildStairs);
-            if (old) t.RebuildAll();
+            foreach (var p in StrataPlug.All) p.Configure(t);
+            if (old || healed) t.RebuildAll();
+        }
+
+        const string GroundShader = "Strata/TileGround", WallsShader = "Strata/TileWalls";
+
+        static bool IsGround(Shader s) => s && (s.name == GroundShader || StrataPlug.OwnsShader(s));
+        static bool IsWalls(Shader s) => s && (s.name == WallsShader || StrataPlug.OwnsShader(s));
+        static bool Lost(Material m) => m && (!m.shader || m.shader.name == "Hidden/InternalErrorShader");
+
+        static bool Heal(Material m, string shader)
+        {
+            if (!Lost(m)) return false;
+            var s = Shader.Find(shader);
+            if (!s) return false;
+            m.shader = s;
+            var so = new SerializedObject(m);
+            foreach (var list in new[] { "m_SavedProperties.m_TexEnvs", "m_SavedProperties.m_Ints", "m_SavedProperties.m_Floats", "m_SavedProperties.m_Colors" })
+            {
+                var p = so.FindProperty(list);
+                if (p == null || !p.isArray) continue;
+                for (int i = p.arraySize - 1; i >= 0; i--)
+                {
+                    var key = p.GetArrayElementAtIndex(i).FindPropertyRelative("first");
+                    if (key != null && !m.HasProperty(key.stringValue)) p.DeleteArrayElementAtIndex(i);
+                }
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(m);
+            return true;
         }
 
         public static void UpgradeOld()
         {
             foreach (var path in StrataSessions.FindTerrains())
             {
-                if (StrataSessions.Active != null && StrataSessions.Active.dataPath == path) continue;
+                if (StrataSessions.Find(path) != null) continue;
                 string dir = Path.GetDirectoryName(path).Replace('\\', '/'), name = Path.GetFileNameWithoutExtension(path);
                 var g = AssetDatabase.LoadAssetAtPath<Material>($"{dir}/Materials/{name}_Ground.mat");
-                if (!g || !g.shader || g.shader.name != "Strata/TileGround" || g.GetFloat("_StrataCodes") >= 2) continue;
+                var w = AssetDatabase.LoadAssetAtPath<Material>($"{dir}/Materials/{name}_Walls.mat");
+                bool lost = Lost(g) || Lost(w);
+                if (!lost && (!g || !IsGround(g.shader) || g.GetFloat("_StrataCodes") >= 2)) continue;
                 StrataTerrain t = null;
                 try
                 {
                     t = StrataTerrain.Open(path);
                     if (t.map.profile != Id) continue;
                     Configure(t);
-                    Debug.Log($"Strata: brought {t.Name} up to date (meshes and mask rebuilt for the new tile sets; its data is unchanged).");
+                    Debug.Log(lost ? $"Strata: {t.Name} lost its shaders (an add-on was removed?), so it uses Strata's own again (meshes and mask rebuilt; its data is unchanged)."
+                        : $"Strata: brought {t.Name} up to date (meshes and mask rebuilt for the new tile sets; its data is unchanged).");
                 }
                 catch (Exception ex) { Debug.LogWarning($"Strata: could not bring {path} up to date: {ex.Message}"); }
                 finally { t?.Dispose(); }
@@ -166,7 +199,7 @@ namespace Strata.Formats
             foreach (var path in users)
             {
                 progress?.Invoke($"Updating {Path.GetFileNameWithoutExtension(path)}", (float)n / users.Count);
-                var active = StrataSessions.Active != null && StrataSessions.Active.dataPath == path ? StrataSessions.Active : null;
+                var active = StrataSessions.Find(path);
                 StrataTerrain t = active;
                 try
                 {
@@ -185,6 +218,7 @@ namespace Strata.Formats
                     }
                     ts.Apply(t.groundMaterial, t.wallsMaterial);
                     t.UseStairs(ts.StairStyles(), ts.StairMaterials(), rebuild: true);
+                    t.wallShape = StrataPlug.ShapeFor(t);
                     t.RebuildAll();
                     n++;
                 }
@@ -259,14 +293,14 @@ namespace Strata.Formats
                 string dir = Path.GetDirectoryName(path).Replace('\\', '/'), name = Path.GetFileNameWithoutExtension(path);
                 var g = AssetDatabase.LoadAssetAtPath<Material>($"{dir}/Materials/{name}_Ground.mat");
                 var w = AssetDatabase.LoadAssetAtPath<Material>($"{dir}/Materials/{name}_Walls.mat");
-                bool mine = g && g.shader && g.shader.name == "Strata/TileGround" && g.GetTexture("_GroundAlbedo") == ts.groundAlbedo;
+                bool mine = g && IsGround(g.shader) && g.GetTexture("_GroundAlbedo") == ts.groundAlbedo;
                 if (!mine) continue;
-                ts.Apply(g, w && w.shader && w.shader.name == "Strata/TileWalls" ? w : null);
+                ts.Apply(g, w && IsWalls(w.shader) ? w : null);
                 AssetDatabase.SaveAssetIfDirty(g);
                 if (w) AssetDatabase.SaveAssetIfDirty(w);
             }
-            var a = StrataSessions.Active;
-            if (a != null && a.map.profile == Id && TilesOf(a.map) == ts) Configure(a, rebuildStairs: true);
+            foreach (var a in StrataSessions.Opened)
+                if (a.map.profile == Id && TilesOf(a.map) == ts) Configure(a, rebuildStairs: true);
             StrataSessions.Raise();
             SceneView.RepaintAll();
         }
@@ -288,8 +322,8 @@ namespace Strata.Formats
             for (int i = 0; i < map.wall.Length; i++) { map.wall[i] = 1; map.rim[i] = 1; }
 
             StrataTerrain.EnsureFolder(folder + "/Materials");
-            var ground = new Material(Shader.Find("Strata/TileGround")) { name = name + "_Ground", enableInstancing = true };
-            var walls = new Material(Shader.Find("Strata/TileWalls")) { name = name + "_Walls", enableInstancing = true };
+            var ground = new Material(Shader.Find(GroundShader)) { name = name + "_Ground", enableInstancing = true };
+            var walls = new Material(Shader.Find(WallsShader)) { name = name + "_Walls", enableInstancing = true };
             AssetDatabase.CreateAsset(ground, $"{folder}/Materials/{name}_Ground.mat");
             AssetDatabase.CreateAsset(walls, $"{folder}/Materials/{name}_Walls.mat");
             tiles.Apply(ground, walls);

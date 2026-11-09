@@ -202,7 +202,7 @@ namespace Strata
 
         static readonly int[,] SideNormal = { { 0, 0, -1 }, { 1, 0, 0 }, { 0, 0, 1 }, { -1, 0, 0 } };
 
-        public static void Walls(StrataMap m, int c0, int r0, int c1, int r1, double pivotX, double pivotZ, MeshData into, List<Wall> scratch = null, List<(int, int)> nbScratch = null)
+        public static void Walls(StrataMap m, int c0, int r0, int c1, int r1, double pivotX, double pivotZ, MeshData into, List<Wall> scratch = null, List<(int, int)> nbScratch = null, IStrataWallShape shape = null)
         {
             var walls = scratch ?? new List<Wall>();
             var nb = nbScratch ?? new List<(int, int)>();
@@ -245,6 +245,7 @@ namespace Strata
                 int facing = ux * SideNormal[w.side, 2] - uz * SideNormal[w.side, 0];
                 if (facing > 0) { Tri(tris, a, b, c); Tri(tris, a, c, d); }
                 else { Tri(tris, a, c, b); Tri(tris, a, d, c); }
+                if (shape != null && shape.Claims(m, w)) shape.Build(m, w, pivotX, pivotZ, codeA, into, tris);
             }
         }
     }

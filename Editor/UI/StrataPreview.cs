@@ -252,9 +252,11 @@ namespace Strata
             return list;
         }
 
+        public static bool Quiet;
+
         static void Label(Vector3 world, string text)
         {
-            if (!StrataSettings.Labels) return;
+            if (!StrataSettings.Labels || Quiet) return;
             if (label == null)
             {
                 label = new GUIStyle(EditorStyles.boldLabel) { fontSize = 12, alignment = TextAnchor.MiddleLeft, padding = new RectOffset(6, 6, 2, 3) };

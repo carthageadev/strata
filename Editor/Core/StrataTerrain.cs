@@ -22,6 +22,7 @@ namespace Strata
         public StairLook stairLook = StairLook.Default;
         public StairStyle[] stairStyles = StairStyle.Classic(StairLook.Default);
         public Material groundMaterial, wallsMaterial;
+        public IStrataWallShape wallShape;
         public string lastMessage = "";
         long savedRevision;
         StrataMap original;
@@ -76,7 +77,7 @@ namespace Strata
         {
             var map = StrataIO.Load(dataPath);
             var t = new StrataTerrain(dataPath, map);
-            try { t.Bind(); }
+            try { t.Bind(); t.wallShape = StrataPlug.ShapeFor(t); }
             catch { t.Dispose(); throw; }
             return t;
         }
@@ -181,6 +182,7 @@ namespace Strata
             StrataIO.Save(map, dataPath);
             StrataIO.Save(map, OriginalPath(dataPath));
             var t = new StrataTerrain(dataPath, map) { groundMaterial = ground, wallsMaterial = walls };
+            foreach (var p in StrataPlug.All) p.Configure(t);
             t.Layout();
             if (stairMaterials != null) t.stairLook = LookOf(stairMaterials);
             t.stairStyles = stairStyles ?? StairStyle.Classic(t.stairLook);
@@ -266,10 +268,38 @@ namespace Strata
             StrataMesher.Ground(map, ch.c0, ch.r0, ch.c1, ch.r1, ch.px, ch.pz, scratch);
             scratch.ToMesh(ch.ground, weld);
             scratch.Clear();
-            StrataMesher.Walls(map, ch.c0, ch.r0, ch.c1, ch.r1, ch.px, ch.pz, scratch, wallScratch, nbScratch);
+            var seam = OnBorder(ch) ? StrataPlug.BorderOf(this) : null;
+            if (seam != null) StrataMesher.Walls(seam, ch.c0 + 1, ch.r0 + 1, ch.c1 + 1, ch.r1 + 1, ch.px, ch.pz, scratch, wallScratch, nbScratch, wallShape);
+            else StrataMesher.Walls(map, ch.c0, ch.r0, ch.c1, ch.r1, ch.px, ch.pz, scratch, wallScratch, nbScratch, wallShape);
             scratch.ToMesh(ch.walls, weld);
             ch.meshDirty = false;
             ch.unbaked = !weld;
+        }
+
+        bool OnBorder(Chunk ch) => ch.c0 == 0 || ch.r0 == 0 || ch.c1 == map.w || ch.r1 == map.h;
+
+        Color32 MaskAt(StrataMap seam, int c, int r) => seam != null ? StrataRules.Mask(seam, c + 1, r + 1, wallShape) : StrataRules.Mask(map, c, r, wallShape);
+
+        int Reach => wallShape != null ? Math.Max(2, wallShape.Reach) : 2;
+
+        public void SeamsChanged()
+        {
+            if (chunks == null) return;
+            foreach (var ch in chunks) if (OnBorder(ch)) ch.meshDirty = true;
+            maskDirty = new RectInt(0, 0, map.w, map.h);
+        }
+
+        public void SeamChanged(int x0, int z0, int x1, int z1)
+        {
+            if (chunks == null) return;
+            int c0 = Math.Max(0, x0 - map.x0 - 1), r0 = Math.Max(0, z0 - map.z0 - 1), c1 = Math.Min(map.w, x1 - map.x0 + 1), r1 = Math.Min(map.h, z1 - map.z0 + 1);
+            if (c1 <= c0 || r1 <= r0) return;
+            int reach = Reach;
+            int a0 = Math.Max(0, c0 - reach), b0 = Math.Max(0, r0 - reach), a1 = Math.Min(map.w, c1 + reach), b1 = Math.Min(map.h, r1 + reach);
+            for (int cr = b0 / map.bakeChunk; cr <= Math.Min(chunksY - 1, (b1 - 1) / map.bakeChunk); cr++)
+                for (int cx = a0 / map.bakeChunk; cx <= Math.Min(chunksX - 1, (a1 - 1) / map.bakeChunk); cx++)
+                    chunks[cr * chunksX + cx].meshDirty = true;
+            maskDirty = Grow(maskDirty, new RectInt(c0, r0, c1 - c0, r1 - r0));
         }
 
         void BuildStairs(Chunk ch, bool weld)
@@ -286,11 +316,14 @@ namespace Strata
         {
             if (c1 <= c0 || r1 <= r0) return;
             map.revision++;
-            int a0 = Math.Max(0, c0 - 2), b0 = Math.Max(0, r0 - 2), a1 = Math.Min(map.w, c1 + 2), b1 = Math.Min(map.h, r1 + 2);
+            int reach = Reach;
+            int a0 = Math.Max(0, c0 - reach), b0 = Math.Max(0, r0 - reach), a1 = Math.Min(map.w, c1 + reach), b1 = Math.Min(map.h, r1 + reach);
             for (int cr = b0 / map.bakeChunk; cr <= Math.Min(chunksY - 1, (b1 - 1) / map.bakeChunk); cr++)
                 for (int cx = a0 / map.bakeChunk; cx <= Math.Min(chunksX - 1, (a1 - 1) / map.bakeChunk); cx++)
                     chunks[cr * chunksX + cx].meshDirty = true;
             maskDirty = Grow(maskDirty, new RectInt(Math.Max(0, c0 - 1), Math.Max(0, r0 - 1), Math.Min(map.w, c1 + 1) - Math.Max(0, c0 - 1), Math.Min(map.h, r1 + 1) - Math.Max(0, r0 - 1)));
+            if (c0 <= 1 || r0 <= 1 || c1 >= map.w - 1 || r1 >= map.h - 1)
+                foreach (var p in StrataPlug.All) p.Edited(this, map.x0 + c0, map.z0 + r0, map.x0 + c1, map.z0 + r1);
             for (int s = 0; s < map.stairs.Count; s++)
             {
                 bool near = false;
@@ -324,6 +357,15 @@ namespace Strata
             if (prefabChanged) PrefabUtility.SavePrefabAsset(prefab);
             bool structural = chunks.Any(ch => ch.stairs && ch.stairs.subMeshCount != slots);
             if (rebuild || structural) foreach (var ch in chunks) ch.stairsDirty = true;
+            Flush();
+        }
+
+        public void Remesh()
+        {
+            if (chunks == null) return;
+            foreach (var ch in chunks) ch.meshDirty = true;
+            maskDirty = new RectInt(0, 0, map.w, map.h);
+            map.revision++;
             Flush();
         }
 
@@ -392,9 +434,10 @@ namespace Strata
             {
                 var r = maskDirty;
                 var px = new Color32[r.width * r.height];
+                var seam = StrataPlug.BorderOf(this);
                 for (int y = 0; y < r.height; y++)
                     for (int x = 0; x < r.width; x++)
-                        px[y * r.width + x] = StrataRules.Mask(map, r.x + x, r.y + y);
+                        px[y * r.width + x] = MaskAt(seam, r.x + x, r.y + y);
                 mask.SetPixels32(r.x, r.y, r.width, r.height, px);
                 mask.Apply(false, false);
                 maskDirty = default;
@@ -512,9 +555,10 @@ namespace Strata
         Color32[] MaskPixels()
         {
             var px = new Color32[map.w * map.h];
+            var seam = StrataPlug.BorderOf(this);
             for (int r = 0; r < map.h; r++)
                 for (int c = 0; c < map.w; c++)
-                    px[r * map.w + c] = StrataRules.Mask(map, c, r);
+                    px[r * map.w + c] = MaskAt(seam, c, r);
             return px;
         }
 
@@ -533,6 +577,7 @@ namespace Strata
             Flush();
             int differ = 0, tris = 0;
             var data = new MeshData();
+            var seam = StrataPlug.BorderOf(this);
             foreach (var ch in chunks)
             {
                 var want = new Dictionary<long, int>(); var have = new Dictionary<long, int>();
@@ -541,7 +586,8 @@ namespace Strata
                 StrataMesher.Ground(map, ch.c0, ch.r0, ch.c1, ch.r1, ch.px, ch.pz, data);
                 tris += StrataVerify.AddTris(want, data, at);
                 data.Clear();
-                StrataMesher.Walls(map, ch.c0, ch.r0, ch.c1, ch.r1, ch.px, ch.pz, data);
+                if (seam != null && OnBorder(ch)) StrataMesher.Walls(seam, ch.c0 + 1, ch.r0 + 1, ch.c1 + 1, ch.r1 + 1, ch.px, ch.pz, data, shape: wallShape);
+                else StrataMesher.Walls(map, ch.c0, ch.r0, ch.c1, ch.r1, ch.px, ch.pz, data, shape: wallShape);
                 tris += StrataVerify.AddTris(want, data, at);
                 data.Clear();
                 for (int s = 0; s < map.stairs.Count; s++) if (ChunkOfStair(s) == ch) StrataStairs.Build(map, s, stairStyles, ch.px, ch.pz, data);
@@ -555,7 +601,7 @@ namespace Strata
             for (int r = 0; r < map.h; r++)
                 for (int c = 0; c < map.w; c++)
                 {
-                    var a = StrataRules.Mask(map, c, r); var b = mpx[r * map.w + c];
+                    var a = MaskAt(seam, c, r); var b = mpx[r * map.w + c];
                     if (a.r != b.r || a.g != b.g || a.b != b.b || a.a != b.a) maskBad++;
                 }
             int paintBad = 0;

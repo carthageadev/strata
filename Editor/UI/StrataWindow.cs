@@ -185,6 +185,7 @@ namespace Strata
             {
                 GUILayout.Label(t.Name, EditorStyles.boldLabel);
                 GUILayout.Label(new GUIContent($"{StrataProfiles.DisplayName(t)} · {t.map.w} × {t.map.h} m · {t.map.stairs.Count} stairs", t.dataPath), small);
+                if (StrataSessions.Opened.Count > 1) GUILayout.Label(new GUIContent($"{StrataSessions.Opened.Count} terrains open", string.Join(", ", StrataSessions.Opened.Select(o => o.Name))), small);
                 if (StrataSessions.RecoveryOffered)
                 {
                     EditorGUILayout.HelpBox(StrataSessions.Notice, MessageType.Warning);
@@ -211,7 +212,7 @@ namespace Strata
                 {
                     if (GUILayout.Button(new GUIContent("Check", "Compare the meshes, mask and paint with the data"))) Run(() => message = t.Check());
                     if (GUILayout.Button(new GUIContent("Rebuild all", "Rebuild every chunk from the data"))) Run(() => { t.RebuildAll(); message = "Rebuilt every chunk."; });
-                    if (GUILayout.Button("Close")) Run(() => StrataSessions.Close());
+                    if (GUILayout.Button("Close")) Run(() => StrataSessions.CloseAll());
                 }
                 TileSet(t);
                 Backups(t);

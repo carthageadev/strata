@@ -253,7 +253,11 @@ namespace Strata
             }
         }
 
-        void EditSet() => PixelGrid();
+        void EditSet()
+        {
+            foreach (var p in StrataPlug.All) p.SetSettings(library, Schedule);
+            PixelGrid();
+        }
 
         static readonly GUIContent GridLabel = new GUIContent("Pixel grid", "The pixel grid blends follow. Each material's own: found from its art (or set on it). Or force one resolution for a 16 m tile: 256 is every texel, 32 is pixels of 8 x 8 texels.");
         static readonly GUIContent[] GridNames = { new GUIContent("Each material's own"), new GUIContent("512"), new GUIContent("256 (every texel)"), new GUIContent("128"), new GUIContent("64"), new GUIContent("32"), new GUIContent("16") };
@@ -564,6 +568,7 @@ namespace Strata
             var like = library ? library.List(role).FirstOrDefault(x => x) : null;
             if (like) { m.albedo = like.albedo; m.normal = like.normal; m.metallic = like.metallic; m.occlusion = like.occlusion; m.packed = like.packed; m.edgePattern = like.edgePattern; m.edgeDark = like.edgeDark; m.edgeLight = like.edgeLight; m.edgeTexture = like.edgeTexture; m.family = like.family; }
             m.meantAs = UseOf(role);
+            foreach (var p in StrataPlug.All) p.Created(m, like, null, role, false);
             AssetDatabase.CreateAsset(m, AssetDatabase.GenerateUniqueAssetPath($"{FolderFor(null, false)}/New Material.asset"));
             if (!all) AddTo(role, m);
             Select(m, role);
@@ -713,6 +718,7 @@ namespace Strata
                 GUI.Label(new Rect(r.x - 4, r.yMax + 1, r.width + 8, 14), new GUIContent(label, p.tooltip), slotLabel);
             }
             EditorGUILayout.PropertyField(so.FindProperty("meantAs"), new GUIContent("Kind", "Where it is listed: as a top, a side, an edge (any mix)"));
+            foreach (var p in StrataPlug.All) p.MaterialHeader(m, so);
             EditorGUILayout.PropertyField(so.FindProperty("tint"));
             var ps = so.FindProperty("pixelSize");
             ps.intValue = EditorGUILayout.IntPopup(new GUIContent("Pixel size", ps.tooltip), ps.intValue, SizeNames, SizeValues);
@@ -723,8 +729,11 @@ namespace Strata
                 GUILayout.Label("As a top", EditorStyles.miniBoldLabel);
                 EditorGUILayout.PropertyField(so.FindProperty("priority"));
                 EditorGUILayout.PropertyField(so.FindProperty("family"));
-                EditorGUILayout.PropertyField(so.FindProperty("wobble"));
-                EditorGUILayout.PropertyField(so.FindProperty("ragged"));
+                if (!StrataPlug.All.Any(p => p.StraightBorders(m, so)))
+                {
+                    EditorGUILayout.PropertyField(so.FindProperty("wobble"));
+                    EditorGUILayout.PropertyField(so.FindProperty("ragged"));
+                }
                 int k = all ? -1 : library.tops.IndexOf(m);
                 if (k >= 0)
                 {
@@ -733,6 +742,7 @@ namespace Strata
                     if (now != slope) { Undo.RecordObject(library, "Strata: slope top"); library.slopeLayer = now ? k : -1; EditorUtility.SetDirty(library); Schedule(); }
                 }
             }
+            foreach (var p in StrataPlug.All) p.MaterialSettings(m, so, library, all);
             if ((m.meantAs & StrataMaterial.Use.Edge) != 0 || (!all && library.edges.Contains(m)))
             {
                 GUILayout.Label("As an edge", EditorStyles.miniBoldLabel);

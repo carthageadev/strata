@@ -15,7 +15,11 @@ namespace Strata
         public static StrataTerrain Active { get; private set; }
         public static event Action Changed;
         public static string Notice { get; set; } = "";
-        public static bool RecoveryOffered { get; private set; }
+        public static bool RecoveryOffered => Active != null && recovery.Contains(Active);
+        public static IReadOnlyList<StrataTerrain> Opened => open;
+
+        static readonly List<StrataTerrain> open = new List<StrataTerrain>();
+        static readonly HashSet<StrataTerrain> recovery = new HashSet<StrataTerrain>();
 
         const string ReloadKey = "Strata.ReloadPath";
 
@@ -61,34 +65,70 @@ namespace Strata
             return list.ToArray();
         }
 
+        public static StrataTerrain Find(string dataPath) => open.FirstOrDefault(t => t.dataPath == dataPath);
+
         public static StrataTerrain Open(string dataPath)
         {
-            if (Active != null && Active.dataPath == dataPath) { Active.FindInstance(); return Active; }
-            Close();
+            var have = Find(dataPath);
+            if (have != null) { have.FindInstance(); Focus(have); return have; }
+            if (!StrataPlug.Multi) { foreach (var o in open.ToArray()) Shut(o); Active = null; }
+            var t = Load(dataPath);
+            if (t != null)
+            {
+                Active = t;
+                Notice = recovery.Contains(t) ? "This terrain has edits that were not saved when Unity last closed." : "";
+                foreach (var p in StrataPlug.All) p.Joined(t);
+            }
+            Changed?.Invoke();
+            return t;
+        }
+
+        static StrataTerrain Load(string dataPath)
+        {
             try
             {
-                Active = StrataTerrain.Open(dataPath);
-                Notice = "";
-                Formats.StrataProfiles.Configure(Active);
-                if (Active.HasRecovery) { RecoveryOffered = true; Notice = "This terrain has edits that were not saved when Unity last closed."; }
+                var t = StrataTerrain.Open(dataPath);
+                Formats.StrataProfiles.Configure(t);
+                open.Add(t);
+                if (t.HasRecovery) recovery.Add(t);
+                return t;
             }
             catch (Exception ex)
             {
-                Active = null;
                 Notice = ex.Message;
                 Debug.LogError(ex);
+                return null;
             }
+        }
+
+        public static void Focus(StrataTerrain t)
+        {
+            if (t == null || t == Active || !open.Contains(t)) return;
+            Active = t;
             Changed?.Invoke();
-            return Active;
         }
 
         public static StrataTerrain OpenForScene()
         {
             string selected = SelectedTerrain();
-            if (selected != null && (Active == null || Active.dataPath != selected)) return Open(selected);
-            if (Active != null) { if (!Active.Connected) Active.FindInstance(); if (Active.Connected) return Active; }
-            var here = TerrainsInScene();
-            return here.Length > 0 ? Open(here[0]) : Active;
+            if (!StrataPlug.Multi)
+            {
+                if (selected != null && (Active == null || Active.dataPath != selected)) return Open(selected);
+                if (Active != null) { if (!Active.Connected) Active.FindInstance(); if (Active.Connected) return Active; }
+                var here = TerrainsInScene();
+                return here.Length > 0 ? Open(here[0]) : Active;
+            }
+            foreach (var path in TerrainsInScene())
+                if (Find(path) == null)
+                {
+                    var t = Load(path);
+                    if (t != null) foreach (var p in StrataPlug.All) p.Joined(t);
+                }
+            if (selected != null) return Open(selected);
+            if (Active != null && !Active.Connected) Active.FindInstance();
+            if (Active == null || !Active.Connected) Active = open.FirstOrDefault(t => t.Connected) ?? Active;
+            Changed?.Invoke();
+            return Active;
         }
 
         public static string SelectedTerrain()
@@ -104,20 +144,40 @@ namespace Strata
 
         public static void Close()
         {
-            if (Active == null) return;
-            try { if (Active.history.Recording) Active.history.End(); if (Active.Unsaved || Active.Unbaked) Active.Bake(); }
-            catch (Exception ex) { Debug.LogError(ex); }
-            Active.Dispose();
-            Active = null;
-            RecoveryOffered = false;
+            var t = Active;
+            if (t == null) return;
+            Shut(t);
+            Active = open.FirstOrDefault(o => o.Connected) ?? open.FirstOrDefault();
             Changed?.Invoke();
+        }
+
+        public static void CloseAll()
+        {
+            foreach (var t in open.ToArray()) Shut(t);
+            Active = null;
+            Changed?.Invoke();
+        }
+
+        static void Shut(StrataTerrain t)
+        {
+            try { if (t.history.Recording) t.history.End(); if (t.Unsaved || t.Unbaked) t.Bake(); }
+            catch (Exception ex) { Debug.LogError(ex); }
+            t.Dispose();
+            open.Remove(t);
+            recovery.Remove(t);
+            Rearranged();
+        }
+
+        public static void FlushAll()
+        {
+            foreach (var t in open) t.Flush();
         }
 
         public static void KeepRecovered()
         {
             if (Active == null) return;
             Active.Recover();
-            RecoveryOffered = false;
+            recovery.Remove(Active);
             Notice = "Recovered the unsaved edits.";
             Changed?.Invoke();
         }
@@ -126,71 +186,97 @@ namespace Strata
         {
             if (Active == null) return;
             Active.Save(backup: false);
-            RecoveryOffered = false;
+            recovery.Remove(Active);
             Notice = "";
             Changed?.Invoke();
         }
 
         public static void Raise() => Changed?.Invoke();
 
+        static void Rearranged()
+        {
+            foreach (var p in StrataPlug.All) p.Rearranged();
+        }
+
         static void OnPlayMode(PlayModeStateChange s)
         {
-            if (s != PlayModeStateChange.ExitingEditMode || Active == null) return;
-            try
-            {
-                if (Active.history.Recording) Active.history.End();
-                if (AutoBakeOnPlay && (Active.Unbaked || Active.Unsaved)) Active.Bake();
-            }
-            catch (Exception ex) { Debug.LogError("Strata could not bake the terrain before Play: " + ex.Message); }
+            if (s != PlayModeStateChange.ExitingEditMode) return;
+            foreach (var t in open)
+                try
+                {
+                    if (t.history.Recording) t.history.End();
+                    if (AutoBakeOnPlay && (t.Unbaked || t.Unsaved)) t.Bake();
+                }
+                catch (Exception ex) { Debug.LogError($"Strata could not bake {t.Name} before Play: " + ex.Message); }
         }
 
         static void OnSceneSaving(Scene scene, string path)
         {
-            if (Active == null || !BakeOnSave || !Active.instance || Active.instance.scene != scene) return;
-            try { if (Active.Unbaked || Active.Unsaved) Active.Bake(); }
-            catch (Exception ex) { Debug.LogError("Strata could not bake the terrain while saving: " + ex.Message); }
+            if (!BakeOnSave) return;
+            foreach (var t in open)
+            {
+                if (!t.instance || t.instance.scene != scene) continue;
+                try { if (t.Unbaked || t.Unsaved) t.Bake(); }
+                catch (Exception ex) { Debug.LogError($"Strata could not bake {t.Name} while saving: " + ex.Message); }
+            }
         }
 
         static void OnBeforeReload()
         {
-            if (Active == null) return;
-            try
+            if (open.Count == 0) return;
+            var paths = new List<string>();
+            foreach (var t in open)
             {
-                if (Active.history.Recording) Active.history.End();
-                Active.WriteRecovery();
-                SessionState.SetString(ReloadKey, Active.dataPath);
+                try
+                {
+                    if (t.history.Recording) t.history.End();
+                    t.WriteRecovery();
+                    paths.Add(t.dataPath);
+                }
+                catch (Exception ex) { Debug.LogError(ex); }
+                t.Dispose();
             }
-            catch (Exception ex) { Debug.LogError(ex); }
-            Active.Dispose();
+            if (Active != null) { paths.Remove(Active.dataPath); paths.Insert(0, Active.dataPath); }
+            SessionState.SetString(ReloadKey, string.Join("\n", paths));
+            open.Clear();
+            recovery.Clear();
             Active = null;
         }
 
         static void AfterReload()
         {
-            string path = SessionState.GetString(ReloadKey, "");
-            if (string.IsNullOrEmpty(path)) return;
+            string list = SessionState.GetString(ReloadKey, "");
+            if (string.IsNullOrEmpty(list)) return;
             SessionState.EraseString(ReloadKey);
-            if (!File.Exists(path)) return;
-            if (Active != null && Active.dataPath != path) return;
-            try
+            var paths = list.Split('\n').Where(p => p.Length > 0 && File.Exists(p)).ToArray();
+            foreach (var path in paths)
             {
-                if (Active == null) { Active = StrataTerrain.Open(path); Formats.StrataProfiles.Configure(Active); }
-                if (Active.HasRecovery) { Active.AdoptRecovery(); RecoveryOffered = false; Notice = ""; }
+                if (Find(path) != null) continue;
+                try
+                {
+                    var t = StrataTerrain.Open(path);
+                    Formats.StrataProfiles.Configure(t);
+                    if (t.HasRecovery) t.AdoptRecovery();
+                    open.Add(t);
+                }
+                catch (Exception ex) { Notice = ex.Message; }
             }
-            catch (Exception ex) { Active?.Dispose(); Active = null; Notice = ex.Message; }
+            Active = paths.Length > 0 ? Find(paths[0]) ?? open.FirstOrDefault() : open.FirstOrDefault();
+            Rearranged();
             Changed?.Invoke();
         }
 
         static void OnQuit()
         {
-            if (Active == null) return;
-            try { Active.WriteRecovery(); } catch (Exception) { }
+            foreach (var t in open)
+                try { t.WriteRecovery(); } catch (Exception) { }
         }
 
         static void OnScenesChanged()
         {
-            if (Active == null) return;
-            Active.FindInstance();
+            if (open.Count == 0) return;
+            foreach (var t in open) t.FindInstance();
+            Rearranged();
             Changed?.Invoke();
         }
     }

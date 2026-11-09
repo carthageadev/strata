@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Strata
@@ -49,6 +50,8 @@ namespace Strata
         public Color edgeDark = new Color(0.34f, 0.47f, 0.17f);
         [Tooltip("As an edge: the sunlit lip on the ground, or the lighter stones.")]
         public Color edgeLight = new Color(0.46f, 0.6f, 0.26f);
+
+        [HideInInspector] public List<StrataExtra> extras = new List<StrataExtra>();
 
         public string Title => string.IsNullOrEmpty(displayName) ? name : displayName;
         public bool EdgeTextured => edgeTexture && albedo;

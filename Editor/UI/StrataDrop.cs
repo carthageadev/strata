@@ -524,6 +524,7 @@ namespace Strata
             var m = ScriptableObject.CreateInstance<StrataMaterial>();
             m.meantAs = stair ? StrataMaterial.Use.None : UseOf(role);
             (m.family, m.priority) = Ground(g.name);
+            foreach (var p in StrataPlug.All) p.Created(m, null, g.name, role, stair);
             if (role == Role.Edge && !stair)
             {
                 m.edgePattern = EdgeKind(g.name);

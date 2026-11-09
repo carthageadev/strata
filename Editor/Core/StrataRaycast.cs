@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Strata
@@ -78,20 +79,19 @@ namespace Strata
             return t0 <= t1;
         }
 
-        static long rangeRevision = -1;
-        static StrataMap rangeMap;
-        static double rangeLo, rangeHi;
+        static readonly Dictionary<StrataMap, (long rev, double lo, double hi)> ranges = new Dictionary<StrataMap, (long, double, double)>();
 
         public static void Range(StrataMap m, out double lo, out double hi)
         {
-            if (rangeMap != m || rangeRevision != m.revision)
+            if (!ranges.TryGetValue(m, out var r) || r.rev != m.revision)
             {
-                rangeLo = double.MaxValue; rangeHi = double.MinValue;
-                foreach (var v in m.corner) { if (v < rangeLo) rangeLo = v; if (v > rangeHi) rangeHi = v; }
-                foreach (var f in m.flights) { rangeLo = Math.Min(rangeLo, Math.Min(f.y0, f.y1)); rangeHi = Math.Max(rangeHi, Math.Max(f.y0, f.y1)); }
-                rangeMap = m; rangeRevision = m.revision;
+                double a = double.MaxValue, b = double.MinValue;
+                foreach (var v in m.corner) { if (v < a) a = v; if (v > b) b = v; }
+                foreach (var f in m.flights) { a = Math.Min(a, Math.Min(f.y0, f.y1)); b = Math.Max(b, Math.Max(f.y0, f.y1)); }
+                if (ranges.Count > 64) ranges.Clear();
+                ranges[m] = r = (m.revision, a, b);
             }
-            lo = rangeLo; hi = rangeHi;
+            lo = r.lo; hi = r.hi;
         }
     }
 }

@@ -29,6 +29,7 @@ namespace Strata
         public Texture2D noise;
         [Tooltip("The pixel grid blends between materials follow, as the resolution of one 16 m tile (256: every texel; 32: pixels of 8 x 8 texels). 0: each material's own (found from its art, or set on it).")]
         public int pixelGrid = 0;
+        [HideInInspector] public List<StrataExtra> extras = new List<StrataExtra>();
 
         [Serializable]
         public sealed class GroundLayer
@@ -70,6 +71,7 @@ namespace Strata
             tops = new List<StrataMaterial>(from.tops); sides = new List<StrataMaterial>(from.sides);
             edges = new List<StrataMaterial>(from.edges); stairs = new List<StrataStairType>(from.stairs);
             slopeLayer = from.slopeLayer; macro = from.macro; noise = from.noise; pixelGrid = from.pixelGrid;
+            extras = new List<StrataExtra>(from.extras ?? new List<StrataExtra>());
         }
 
         public static int Max(Role r) => r == Role.Top ? MaxTops : r == Role.Side ? MaxSides : MaxEdges;
@@ -251,7 +253,7 @@ namespace Strata
             if (cache.TryGetValue((tex, (int)kind), out var hit)) return hit;
             int w = tex.width, h = tex.height;
             bool repeat = w <= Size && h <= Size && Size % w == 0 && Size % h == 0;
-            if (!repeat && (w < Size || h < Size)) report.AppendLine($"{tex.name}: {w} x {h} stretched to {Size} x {Size} (tiles of 256, 128, 64… keep sixteen texels a metre).");
+            if (!repeat && (w < Size || h < Size)) report.AppendLine($"{tex.name}: {w} x {h} stretched to {Size} x {Size} (sizes that divide 256 repeat cleanly).");
             Color32[] o = null;
             if (tex.isReadable && kind != Kind.NormalMap)
             {
@@ -329,6 +331,7 @@ namespace Strata
                 px[64 + k] = new Color(k < topSlots.Count ? Grid(topSlots[k], groundAlbedo, k) : 16f, 0, 0, 1);
                 px[80 + k] = Color.black;
             }
+            foreach (var p in StrataPlug.All) p.EdgeTable(this, px, wallSlots, topSlots);
             t.SetPixels(px);
             t.Apply(false, false);
             if (existing && AssetDatabase.GetAssetPath(existing) == AssetDatabase.GetAssetPath(this))
@@ -438,7 +441,7 @@ namespace Strata
             {
                 var st = stairs[k];
                 if (!st) continue;
-                var s = new StairStyle { timber = st.Timber, body = -1, tread = -1, cheek = -1, plank = -1, post = -1, look = Look(st) };
+                var s = new StairStyle { timber = st.Timber, body = -1, tread = -1, cheek = -1, plank = -1, post = -1, look = Look(st, StairScale()) };
                 if (st.Models)
                 {
                     var mats = new List<Material>();
@@ -483,10 +486,17 @@ namespace Strata
             EditorUtility.SetDirty(this);
         }
 
-        static StairLook Look(StrataStairType st)
+        public float StairScale()
+        {
+            float k = 1f;
+            foreach (var p in StrataPlug.All) k *= p.StairScale(this);
+            return k;
+        }
+
+        static StairLook Look(StrataStairType st, float k)
         {
             var look = StairLook.Default;
-            Vector2 Size(StrataMaterial m, Vector2 fallback) => m && m.albedo ? new Vector2(Math.Min(m.albedo.width, StrataTileSet.Size), Math.Min(m.albedo.height, StrataTileSet.Size)) : fallback;
+            Vector2 Size(StrataMaterial m, Vector2 fallback) => m && m.albedo ? new Vector2(Math.Min(m.albedo.width, StrataTileSet.Size), Math.Min(m.albedo.height, StrataTileSet.Size)) / k : fallback / k;
             if (st.Timber) { look.deck = Size(st.planks, look.deck); look.timber = Size(st.posts, look.timber); }
             else { look.stone = Size(st.body, look.stone); look.tread = Size(st.tread, look.tread); look.cheek = Size(st.cheek, look.stone); }
             return look;
@@ -532,6 +542,7 @@ namespace Strata
                 wallMat.SetFloat("_StrataCodes", 2);
                 EditorUtility.SetDirty(wallMat);
             }
+            foreach (var p in StrataPlug.All) p.Apply(this, groundMat, wallMat);
         }
     }
 
