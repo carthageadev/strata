@@ -356,7 +356,7 @@ namespace Strata
             }
             if (prefabChanged) PrefabUtility.SavePrefabAsset(prefab);
             bool structural = chunks.Any(ch => ch.stairs && ch.stairs.subMeshCount != slots);
-            if (rebuild || structural) foreach (var ch in chunks) ch.stairsDirty = true;
+            if (rebuild || structural || prefabChanged) foreach (var ch in chunks) ch.stairsDirty = true;
             Flush();
         }
 

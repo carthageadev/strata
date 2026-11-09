@@ -238,6 +238,7 @@ namespace Strata
                     });
                 if (GUILayout.Button(new GUIContent("Edit", "Its materials, in the Materials tab"), EditorStyles.miniButton, GUILayout.Width(40))) { tab = 1; materials.library = lib; materials.Select(null); }
             }
+            StrataMaterialsView.Warn(lib, false);
         }
 
         void Backups(StrataTerrain t)

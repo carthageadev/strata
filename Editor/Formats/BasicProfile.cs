@@ -130,24 +130,15 @@ namespace Strata.Formats
         static bool IsWalls(Shader s) => s && (s.name == WallsShader || StrataPlug.OwnsShader(s));
         static bool Lost(Material m) => m && (!m.shader || m.shader.name == "Hidden/InternalErrorShader");
 
+        public const string HealedTag = "StrataHealed";
+
         static bool Heal(Material m, string shader)
         {
             if (!Lost(m)) return false;
             var s = Shader.Find(shader);
             if (!s) return false;
             m.shader = s;
-            var so = new SerializedObject(m);
-            foreach (var list in new[] { "m_SavedProperties.m_TexEnvs", "m_SavedProperties.m_Ints", "m_SavedProperties.m_Floats", "m_SavedProperties.m_Colors" })
-            {
-                var p = so.FindProperty(list);
-                if (p == null || !p.isArray) continue;
-                for (int i = p.arraySize - 1; i >= 0; i--)
-                {
-                    var key = p.GetArrayElementAtIndex(i).FindPropertyRelative("first");
-                    if (key != null && !m.HasProperty(key.stringValue)) p.DeleteArrayElementAtIndex(i);
-                }
-            }
-            so.ApplyModifiedPropertiesWithoutUndo();
+            m.SetOverrideTag(HealedTag, "1");
             EditorUtility.SetDirty(m);
             return true;
         }
@@ -168,11 +159,27 @@ namespace Strata.Formats
                     t = StrataTerrain.Open(path);
                     if (t.map.profile != Id) continue;
                     Configure(t);
-                    Debug.Log(lost ? $"Strata: {t.Name} lost its shaders (an add-on was removed?), so it uses Strata's own again (meshes and mask rebuilt; its data is unchanged)."
+                    Debug.Log(lost ? $"Strata: {t.Name} lost its add-on shaders, so it draws with Strata's own for now. Its data is kept, and the add-on brings its look back when it's installed again."
                         : $"Strata: brought {t.Name} up to date (meshes and mask rebuilt for the new tile sets; its data is unchanged).");
                 }
                 catch (Exception ex) { Debug.LogWarning($"Strata: could not bring {path} up to date: {ex.Message}"); }
                 finally { t?.Dispose(); }
+            }
+        }
+
+        [InitializeOnLoad]
+        static class Watch
+        {
+            static Watch() { EditorApplication.projectChanged += Changed; }
+
+            static void Changed()
+            {
+                foreach (var ts in StrataSessions.Opened.Where(t => t.map.profile == Id).Select(t => TilesOf(t.map)).Distinct().ToList())
+                {
+                    if (!ts || ts.Built) continue;
+                    try { ts.Build(); Refresh(ts); }
+                    catch (Exception ex) { Debug.LogException(ex); }
+                }
             }
         }
 
@@ -272,14 +279,14 @@ namespace Strata.Formats
 
         static int LastNonZero(int[] w) { for (int k = w.Length - 1; k >= 0; k--) if (w[k] > 0) return k; return -1; }
 
-        public static int Heal(StrataTileSet ts)
+        public static int TakeOutMissing(StrataTileSet ts)
         {
             int n = 0;
             foreach (var (role, slot) in new[] { (StrataTileSet.Role.Top, Slot.Top), (StrataTileSet.Role.Side, Slot.Side), (StrataTileSet.Role.Edge, Slot.Edge) })
             {
                 var list = ts.List(role);
                 for (int k = list.Count - 1; k >= 0; k--)
-                    if (!list[k] && !(list.Count(x => x) == 0 && role != StrataTileSet.Role.Edge)) { RemoveFromSet(ts, slot, k); n++; }
+                    if (!list[k] && (role == StrataTileSet.Role.Edge || list.Count > 1)) { RemoveFromSet(ts, slot, k); n++; }
             }
             for (int k = ts.stairs.Count - 1; k >= 0; k--) if (!ts.stairs[k] && ts.stairs.Count > 1) { RemoveFromSet(ts, Slot.Stair, k); n++; }
             if (n > 0) Debug.Log($"Strata: {n} missing item(s) taken out of {ts.name}; what was painted with them shows each list's first.");

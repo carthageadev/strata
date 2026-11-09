@@ -40,7 +40,6 @@ namespace Strata
         Object scrollTo;
         float settingsH;
         string renaming;
-        bool healing;
         object hover;
         string hoverText, after;
 
@@ -186,11 +185,8 @@ namespace Strata
                     if (GUILayout.Button(new GUIContent("Make a copy", "An editable tile set in Assets with the same items"), EditorStyles.miniButton, GUILayout.Width(90))) Later(NewLibrary);
                 }
             if (!all && !locked && !library.Current) { library.Upgrade(); Schedule(); }
-            if (!all && !locked && !healing && (Holes(library.tops) || Holes(library.sides) || Holes(library.edges) || Holes(library.stairs)))
-            {
-                healing = true;
-                Later(() => { BasicProfile.Heal(library); healing = false; Select(null); });
-            }
+            else if (!all && !locked && buildAt < 0 && !library.Built) Schedule();
+            if (!all && Warn(library, !locked && (Holes(library.tops) || Holes(library.sides) || Holes(library.edges) || Holes(library.stairs)))) Later(TakeOut);
 
             if (selected || !all) Settings(width, height * 0.45f);
             listScroll = EditorGUILayout.BeginScrollView(listScroll);
@@ -306,10 +302,11 @@ namespace Strata
                 ScrollTo(shown[i], cell);
                 if (!Seen(cell)) continue;
                 var item = shown[i];
-                if (!item) continue;
+                if (!item) { MissingTile(cell, SlotOf(role), i); continue; }
                 string tag = all ? PackName(item) : role == Role.Top ? (library.slopeLayer == i ? "slopes" : PackName(item)) : i == 0 ? "natural" : i == 1 ? "by stairs" : PackName(item);
                 bool textured = role != Role.Edge || item.EdgeTextured;
-                Tile(cell, item, role, textured ? item.albedo : null, role == Role.Edge ? item.edgeDark : (Color?)null, role == Role.Edge ? item.edgeLight : (Color?)null, item.Title, tag);
+                bool lacks = role == Role.Edge ? StrataTileSet.LacksEdge(item) : StrataTileSet.Lacks(item);
+                Tile(cell, item, role, lacks ? StrataTileSet.MissingTexture : textured ? item.albedo : null, role == Role.Edge ? item.edgeDark : (Color?)null, role == Role.Edge ? item.edgeLight : (Color?)null, item.Title, tag);
             }
             if (room && AddTile(Cell(area, shown.Count, perRow), $"Add a {title.ToLower().TrimEnd('s')} (or drop textures here)"))
             {
@@ -328,8 +325,11 @@ namespace Strata
             var area = Grid(shown.Count + (room ? 1 : 0), width, out int perRow);
             for (int i = 0; i < shown.Count; i++)
             {
-                ScrollTo(shown[i], Cell(area, i, perRow));
-                if (Seen(Cell(area, i, perRow)) && shown[i]) Tile(Cell(area, i, perRow), shown[i], Role.Top, shown[i].Preview, null, null, shown[i].Title, PackName(shown[i]));
+                var cell = Cell(area, i, perRow);
+                ScrollTo(shown[i], cell);
+                if (!Seen(cell)) continue;
+                if (!shown[i]) { MissingTile(cell, Slot.Stair, i); continue; }
+                Tile(cell, shown[i], Role.Top, StrataTileSet.LacksParts(shown[i]) ? StrataTileSet.MissingTexture : shown[i].Preview, null, null, shown[i].Title, PackName(shown[i]));
             }
             if (room && AddTile(Cell(area, shown.Count, perRow), "Add a stair type (or drop a step model here)"))
             {
@@ -408,7 +408,8 @@ namespace Strata
                 var bg = on ? new Color(Accent.r, Accent.g, Accent.b, 0.35f) : new Color(0.5f, 0.5f, 0.5f, 0.1f);
                 EditorGUI.DrawRect(r, bg);
                 var img = new Rect(r.x + 6, r.y + 4, TileW - 12, TileW - 12);
-                if (tex) GUI.DrawTexture(img, tex, ScaleMode.ScaleAndCrop);
+                if (tex && tex == StrataTileSet.MissingTexture) Checker(img);
+                else if (tex) GUI.DrawTexture(img, tex, ScaleMode.ScaleAndCrop);
                 else if (a.HasValue)
                 {
                     EditorGUI.DrawRect(new Rect(img.x, img.y, img.width, img.height / 2), b ?? a.Value);
@@ -430,6 +431,58 @@ namespace Strata
                 if (e.button == 1) Context(item, role);
                 e.Use();
             }
+        }
+
+        void MissingTile(Rect r, Slot slot, int index)
+        {
+            var e = Event.current;
+            if (e.type == EventType.Repaint)
+            {
+                EditorGUI.DrawRect(r, new Color(0.5f, 0.5f, 0.5f, 0.1f));
+                Checker(new Rect(r.x + 6, r.y + 4, TileW - 12, TileW - 12));
+            }
+            GUI.Label(new Rect(r.x + 1, r.y + TileW - 8, r.width - 2, 14), "Missing", tileName);
+            if (all || locked || !r.Contains(e.mousePosition) || e.type != EventType.MouseDown) return;
+            var menu = new GenericMenu();
+            menu.AddItem(new GUIContent($"Remove from {library.name}"), false, () => Later(() => AskRemove(slot, index, "the missing item")));
+            menu.ShowAsContext();
+            e.Use();
+        }
+
+        static void Checker(Rect r)
+        {
+            var tex = StrataTileSet.MissingTexture;
+            if (tex) GUI.DrawTextureWithTexCoords(r, tex, new Rect(0, 0, 3, 3));
+            else EditorGUI.DrawRect(r, MissingColor);
+        }
+
+        public static readonly Color MissingColor = new Color(0.55f, 0.16f, 0.85f);
+        static GUIStyle warnText;
+
+        public static bool Warn(StrataTileSet ts, bool holes)
+        {
+            if (!ts) return false;
+            var missing = ts.Missing();
+            var absent = StrataPlug.Absent(ts);
+            if (missing.Count == 0 && absent.Count == 0) return false;
+            warnText ??= new GUIStyle(EditorStyles.wordWrappedMiniLabel) { padding = new RectOffset(8, 8, 5, 5) };
+            warnText.normal.textColor = Color.white;
+            var lines = new List<string>();
+            if (missing.Count > 0) lines.Add("Missing: " + string.Join(", ", missing));
+            foreach (var a in absent) lines.Add($"{a} isn't installed. Its settings are kept.");
+            var content = new GUIContent(string.Join("\n", lines));
+            var r = GUILayoutUtility.GetRect(content, warnText);
+            if (Event.current.type == EventType.Repaint) EditorGUI.DrawRect(r, MissingColor);
+            GUI.Label(r, content, warnText);
+            return holes && GUILayout.Button("Take out missing", EditorStyles.miniButton);
+        }
+
+        void TakeOut()
+        {
+            if (!EditorUtility.DisplayDialog("Take out missing?", $"Take the missing items out of {library.name}? Terrains painted with them show each list's first instead. Each terrain is backed up first. This can't be undone.", "Take them out", "Cancel")) return;
+            int n = BasicProfile.TakeOutMissing(library);
+            status = n > 0 ? $"{n} missing item{(n == 1 ? "" : "s")} taken out." : "Nothing to take out.";
+            Select(null);
         }
 
         bool FullTile(Rect r, string tip)

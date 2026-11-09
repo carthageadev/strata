@@ -50,6 +50,8 @@ namespace Strata
 
         [SerializeField, HideInInspector] int format;
         [SerializeField, HideInInspector] int builtSpace = -1;
+        [SerializeField, HideInInspector] string builtWith = "";
+        [SerializeField, HideInInspector] string builtLost = "";
         [HideInInspector] public List<GroundLayer> ground = new List<GroundLayer>();
         [HideInInspector] public List<WallLayer> walls = new List<WallLayer>();
         [HideInInspector] public Color turf = new Color(0.34f, 0.47f, 0.17f), turfLip = new Color(0.46f, 0.6f, 0.26f);
@@ -63,7 +65,17 @@ namespace Strata
 
         public bool Current => format >= 2;
         public bool Built => Current && groundAlbedo && groundNormal && groundOrm && wallAlbedo && wallNormal && wallOrm && edgeAlbedo && edgeTable
-            && (builtSpace < 0 || builtSpace == (int)QualitySettings.activeColorSpace);
+            && (builtSpace < 0 || builtSpace == (int)QualitySettings.activeColorSpace) && (builtWith ?? "") == StrataPlug.Signature && (builtLost ?? "") == Lost();
+
+        string Lost()
+        {
+            var sb = new StringBuilder();
+            for (int k = 0; k < tops.Count; k++) if (Lacks(tops[k])) sb.Append('t').Append(k);
+            for (int k = 0; k < sides.Count; k++) if (Lacks(sides[k])) sb.Append('s').Append(k);
+            for (int k = 0; k < edges.Count; k++) if (LacksEdge(edges[k])) sb.Append('e').Append(k);
+            for (int k = 0; k < stairs.Count; k++) if (LacksParts(stairs[k])) sb.Append('p').Append(k);
+            return sb.ToString();
+        }
 
         public List<StrataMaterial> List(Role r) => r == Role.Top ? tops : r == Role.Side ? sides : edges;
         public void CopyItems(StrataTileSet from)
@@ -152,40 +164,89 @@ namespace Strata
         static readonly Color32 FlatNormal = new Color32(128, 128, 255, 255), PlainOrm = new Color32(255, 230, 0, 255), Grey = new Color32(128, 128, 128, 255);
         enum Channel { Albedo, Normal, Orm }
 
+        public static readonly Color32 MissingLight = new Color32(190, 60, 255, 255), MissingDark = new Color32(60, 14, 96, 255);
+        public static readonly Vector2 MissingSize = new Vector2(16, 16);
+        const string MissingTextureId = "82d8dede0517470f9f2d8d3cbf0840c5", MissingMaterialId = "66122c6531d941359054e8040777e07d";
+        static Texture2D missingTexture;
+        static Material missingMaterial;
+        public static Texture2D MissingTexture => missingTexture ? missingTexture : missingTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(MissingTextureId));
+        public static Material MissingMaterial => missingMaterial ? missingMaterial : missingMaterial = AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(MissingMaterialId));
+        public static bool Lacks(StrataMaterial m) => !m || !m.albedo;
+        public static bool LacksEdge(StrataMaterial m) => !m || m.edgeTexture && !m.albedo;
+        public static bool Used(StrataStairType st, int part) => st.Timber || part < 2 || st.HasSides;
+        public static bool LacksParts(StrataStairType st) => !st || (st.Models ? !st.step && !st.firstStep && !st.lastStep : Enumerable.Range(0, st.Parts).Any(p => Used(st, p) && Lacks(st.Part(p))));
+
+        static Color32[] Checker()
+        {
+            var a = new Color32[Size * Size];
+            for (int y = 0; y < Size; y++)
+                for (int x = 0; x < Size; x++)
+                    a[y * Size + x] = ((x / 8 + y / 8) & 1) == 0 ? MissingLight : MissingDark;
+            return a;
+        }
+
+        public List<string> Missing()
+        {
+            var o = new List<string>();
+            void Items(List<StrataMaterial> list, string kind, bool edge)
+            {
+                for (int k = 0; k < list.Count; k++)
+                {
+                    var m = list[k];
+                    if (!m) o.Add($"{kind} {k + 1}");
+                    else if (edge ? LacksEdge(m) : Lacks(m)) o.Add($"{m.Title} texture");
+                }
+            }
+            Items(tops, "Top", false);
+            Items(sides, "Side", false);
+            Items(edges, "Edge", true);
+            for (int k = 0; k < stairs.Count; k++)
+            {
+                var st = stairs[k];
+                if (!st) { o.Add($"Stair type {k + 1}"); continue; }
+                if (st.Models) { if (!st.step && !st.firstStep && !st.lastStep) o.Add($"{st.Title} model"); continue; }
+                for (int p = 0; p < st.Parts; p++)
+                    if (Used(st, p) && Lacks(st.Part(p))) o.Add(st.Part(p) ? $"{st.Part(p).Title} texture" : $"{st.Title} {st.PartName(p).ToLower()}");
+            }
+            return o;
+        }
+
         public string Build()
         {
             Upgrade();
             var sb = new StringBuilder();
-            if (!tops.Any(t => t)) throw new InvalidOperationException("A tile set needs at least one top.");
-            if (!sides.Any(s => s)) throw new InvalidOperationException("A tile set needs at least one side.");
-            var firstSide = sides.First(s => s);
+            if (tops.Count == 0) throw new InvalidOperationException("A tile set needs at least one top.");
+            if (sides.Count == 0) throw new InvalidOperationException("A tile set needs at least one side.");
             var g = tops.Take(MaxTops).ToList();
-            var w = new List<StrataMaterial> { sides[0] ? sides[0] : firstSide };
+            var w = new List<StrataMaterial> { sides[0] };
             int nw = Math.Max(3, Math.Min(MaxSides, sides.Count));
-            for (int k = 0; k < nw; k++) w.Add(k < sides.Count ? (sides[k] ? sides[k] : firstSide) : sides[sides.Count - 1] ? sides[sides.Count - 1] : firstSide);
+            for (int k = 0; k < nw; k++) w.Add(sides[Math.Min(k, sides.Count - 1)]);
             var e = new List<StrataMaterial> { null };
+            var eLost = new List<bool> { false };
             int lastTextured = -1;
-            for (int k = 0; k < Math.Min(MaxEdges, edges.Count); k++) if (edges[k] && edges[k].EdgeTextured) lastTextured = k;
-            for (int k = 0; k <= lastTextured; k++) e.Add(edges[k] && edges[k].EdgeTextured ? edges[k] : null);
+            for (int k = 0; k < Math.Min(MaxEdges, edges.Count); k++) if (edges[k] && edges[k].EdgeTextured || LacksEdge(edges[k])) lastTextured = k;
+            for (int k = 0; k <= lastTextured; k++) { e.Add(edges[k] && edges[k].EdgeTextured ? edges[k] : null); eLost.Add(LacksEdge(edges[k])); }
             var cache = new Dictionary<(Texture, int), Color32[]>();
-            groundAlbedo = Pack(g, Channel.Albedo, true, Grey, "Ground Albedo", groundAlbedo, sb, cache);
-            groundNormal = Pack(g, Channel.Normal, false, FlatNormal, "Ground Normal", groundNormal, sb, cache);
-            groundOrm = Pack(g, Channel.Orm, false, PlainOrm, "Ground ORM", groundOrm, sb, cache);
-            wallAlbedo = Pack(w, Channel.Albedo, true, Grey, "Wall Albedo", wallAlbedo, sb, cache);
-            wallNormal = Pack(w, Channel.Normal, false, FlatNormal, "Wall Normal", wallNormal, sb, cache);
-            wallOrm = Pack(w, Channel.Orm, false, PlainOrm, "Wall ORM", wallOrm, sb, cache);
-            edgeAlbedo = Pack(e, Channel.Albedo, true, Grey, "Edge Albedo", edgeAlbedo, sb, cache);
+            groundAlbedo = Pack(g, g.Select(Lacks).ToList(), Channel.Albedo, true, Grey, "Ground Albedo", groundAlbedo, sb, cache);
+            groundNormal = Pack(g, null, Channel.Normal, false, FlatNormal, "Ground Normal", groundNormal, sb, cache);
+            groundOrm = Pack(g, null, Channel.Orm, false, PlainOrm, "Ground ORM", groundOrm, sb, cache);
+            wallAlbedo = Pack(w, w.Select(Lacks).ToList(), Channel.Albedo, true, Grey, "Wall Albedo", wallAlbedo, sb, cache);
+            wallNormal = Pack(w, null, Channel.Normal, false, FlatNormal, "Wall Normal", wallNormal, sb, cache);
+            wallOrm = Pack(w, null, Channel.Orm, false, PlainOrm, "Wall ORM", wallOrm, sb, cache);
+            edgeAlbedo = Pack(e, eLost, Channel.Albedo, true, Grey, "Edge Albedo", edgeAlbedo, sb, cache);
             edgeTable = Table(edgeTable, w, g);
             foreach (var st in stairs) if (st) BuildStair(st);
             buildStamp++;
             builtSpace = (int)QualitySettings.activeColorSpace;
+            builtWith = StrataPlug.Signature;
+            builtLost = Lost();
             EditorUtility.SetDirty(this);
             AssetDatabase.SaveAssets();
             sb.Insert(0, $"{name}: {g.Count(x => x)} tops, {sides.Count(x => x)} sides, {edges.Count(x => x)} edges, {stairs.Count(x => x)} stair types.\n");
             return sb.ToString().TrimEnd();
         }
 
-        Texture2DArray Pack(List<StrataMaterial> slices, Channel ch, bool srgb, Color32 fallback, string arrayName, Texture2DArray existing, StringBuilder report, Dictionary<(Texture, int), Color32[]> cache)
+        Texture2DArray Pack(List<StrataMaterial> slices, List<bool> lost, Channel ch, bool srgb, Color32 fallback, string arrayName, Texture2DArray existing, StringBuilder report, Dictionary<(Texture, int), Color32[]> cache)
         {
             var arr = new Texture2DArray(Size, Size, Math.Max(1, slices.Count), TextureFormat.RGBA32, true, !srgb)
             {
@@ -193,7 +254,7 @@ namespace Strata
             };
             for (int k = 0; k < Math.Max(1, slices.Count); k++)
             {
-                var px = (k < slices.Count ? Slice(slices[k], ch, report, cache) : null) ?? Fill(fallback);
+                var px = lost != null && k < lost.Count && lost[k] ? Checker() : (k < slices.Count ? Slice(slices[k], ch, report, cache) : null) ?? Fill(fallback);
                 arr.SetPixels32(px, k, 0);
             }
             arr.Apply(true, false);
@@ -324,9 +385,10 @@ namespace Strata
             for (int k = 0; k < 16; k++)
             {
                 var m = k == 0 || k - 1 >= edges.Count ? null : edges[k - 1];
-                px[k] = new Color(m ? (int)m.edgePattern / 255f : 0f, m && m.EdgeTextured ? 1f : 0f, 0f, 1f);
-                px[16 + k] = m ? Lin(m.edgeDark) : Color.black;
-                px[32 + k] = m ? Lin(m.edgeLight) : Color.black;
+                bool lost = k > 0 && k - 1 < edges.Count && LacksEdge(m);
+                px[k] = new Color(m ? (int)m.edgePattern / 255f : lost ? (int)StrataMaterial.EdgePattern.Overhang / 255f : 0f, m && m.EdgeTextured || lost ? 1f : 0f, 0f, 1f);
+                px[16 + k] = m ? Lin(m.edgeDark) : lost ? Lin(MissingDark) : Color.black;
+                px[32 + k] = m ? Lin(m.edgeLight) : lost ? Lin(MissingLight) : Color.black;
                 px[48 + k] = new Color(k < wallSlots.Count ? Grid(wallSlots[k], wallAlbedo, k) : 16f, 0, 0, 1);
                 px[64 + k] = new Color(k < topSlots.Count ? Grid(topSlots[k], groundAlbedo, k) : 16f, 0, 0, 1);
                 px[80 + k] = Color.black;
@@ -421,13 +483,24 @@ namespace Strata
         public Material[] StairMaterials()
         {
             var list = new List<Material>();
+            bool lost = false;
             foreach (var st in stairs)
             {
-                if (!st) continue;
-                if (st.Models) { list.AddRange(ModelMaterials(st)); continue; }
+                if (!st) { lost = true; continue; }
+                if (st.Models)
+                {
+                    var mats = new List<Material>();
+                    var step = StairModel.From(st.step, mats, 0);
+                    var first = StairModel.From(st.firstStep, mats, 0);
+                    var last = StairModel.From(st.lastStep, mats, 0);
+                    if (step == null && first == null && last == null) lost = true;
+                    else list.AddRange(mats);
+                    continue;
+                }
                 if (st.built == null || st.built.Length != st.Parts) BuildStair(st);
-                list.AddRange(st.built);
+                for (int k = 0; k < st.Parts; k++) list.Add(Used(st, k) && Lacks(st.Part(k)) ? MissingMaterial : st.built[k]);
             }
+            if (lost) list.Add(MissingMaterial);
             while (list.Count < StrataStairs.Submeshes) list.Add(null);
             return list.ToArray();
         }
@@ -435,12 +508,13 @@ namespace Strata
         public StairStyle[] StairStyles()
         {
             var o = new StairStyle[Math.Max(1, stairs.Count)];
+            var lost = new bool[o.Length];
             int slot = 0;
             var first = default(StairStyle); bool any = false;
             for (int k = 0; k < stairs.Count; k++)
             {
                 var st = stairs[k];
-                if (!st) continue;
+                if (!st) { lost[k] = true; continue; }
                 var s = new StairStyle { timber = st.Timber, body = -1, tread = -1, cheek = -1, plank = -1, post = -1, look = Look(st, StairScale()) };
                 if (st.Models)
                 {
@@ -450,7 +524,7 @@ namespace Strata
                     s.last = StairModel.From(st.lastStep, mats, slot);
                     s.step ??= s.first ?? s.last;
                     s.stack = st.stack; s.turn = st.turn;
-                    if (s.step == null) continue;
+                    if (s.step == null) { lost[k] = true; continue; }
                     slot += mats.Count;
                 }
                 else if (st.Timber) { s.plank = slot; s.post = slot + 1; slot += st.Parts; }
@@ -458,7 +532,9 @@ namespace Strata
                 o[k] = s;
                 if (!any) { first = s; any = true; }
             }
-            for (int k = 0; k < o.Length; k++) if (k >= stairs.Count || !stairs[k] || (stairs[k].Models && o[k].step == null)) o[k] = any ? first : StairStyle.Classic(StairLook.Default)[0];
+            var size = MissingSize / StairScale();
+            var gone = new StairStyle { timber = false, body = slot, tread = slot, cheek = slot, plank = -1, post = -1, steps = StairSteps.Slabs, sides = StairSides.None, look = new StairLook { stone = size, tread = size, cheek = size, deck = size, timber = size } };
+            for (int k = 0; k < o.Length; k++) if (lost[k]) o[k] = gone; else if (k >= stairs.Count) o[k] = any ? first : StairStyle.Classic(StairLook.Default)[0];
             return o;
         }
 
@@ -496,9 +572,14 @@ namespace Strata
         static StairLook Look(StrataStairType st, float k)
         {
             var look = StairLook.Default;
-            Vector2 Size(StrataMaterial m, Vector2 fallback) => m && m.albedo ? new Vector2(Math.Min(m.albedo.width, StrataTileSet.Size), Math.Min(m.albedo.height, StrataTileSet.Size)) / k : fallback / k;
-            if (st.Timber) { look.deck = Size(st.planks, look.deck); look.timber = Size(st.posts, look.timber); }
-            else { look.stone = Size(st.body, look.stone); look.tread = Size(st.tread, look.tread); look.cheek = Size(st.cheek, look.stone); }
+            Vector2 Size(int part, Vector2 fallback)
+            {
+                var m = st.Part(part);
+                if (Used(st, part) && Lacks(m)) return MissingSize / k;
+                return m && m.albedo ? new Vector2(Math.Min(m.albedo.width, StrataTileSet.Size), Math.Min(m.albedo.height, StrataTileSet.Size)) / k : fallback / k;
+            }
+            if (st.Timber) { look.deck = Size(0, look.deck); look.timber = Size(1, look.timber); }
+            else { look.stone = Size(0, look.stone); look.tread = Size(1, look.tread); look.cheek = Size(2, look.stone); }
             return look;
         }
 

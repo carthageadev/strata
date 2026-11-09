@@ -31,6 +31,22 @@ namespace Strata
 
         public static bool OwnsShader(Shader s) => s && All.Any(p => p.Owns(s));
 
+        public static string Signature => string.Join("|", All.Select(p => p.Key ?? p.GetType().FullName));
+
+        public static List<string> Absent(StrataTileSet ts)
+        {
+            var keys = new SortedSet<string>(StringComparer.Ordinal);
+            void Add(List<StrataExtra> list) { if (list != null) foreach (var e in list) if (!string.IsNullOrEmpty(e.key)) keys.Add(e.key); }
+            if (!ts) return new List<string>();
+            Add(ts.extras);
+            foreach (var m in ts.tops.Concat(ts.sides).Concat(ts.edges)) if (m) Add(m.extras);
+            foreach (var st in ts.stairs) if (st) for (int k = 0; k < st.Parts; k++) if (st.Part(k)) Add(st.Part(k).extras);
+            foreach (var p in All) if (p.Key != null) keys.Remove(p.Key);
+            return keys.ToList();
+        }
+
+        public virtual string Key => null;
+
         public virtual bool MultiTerrain => false;
         public virtual void Joined(StrataTerrain t) { }
         public virtual void Rearranged() { }
